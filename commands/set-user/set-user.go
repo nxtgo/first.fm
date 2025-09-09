@@ -1,4 +1,4 @@
-package commands
+package setuser
 
 import (
 	"context"
@@ -11,11 +11,12 @@ import (
 	"go.fm/db"
 	"go.fm/logger"
 	"go.fm/util/res"
+	"go.fm/util/shared/cmd"
 )
 
-type SetUserCommand struct{}
+type Command struct{}
 
-func (SetUserCommand) Data() discord.ApplicationCommandCreate {
+func (Command) Data() discord.ApplicationCommandCreate {
 	return discord.SlashCommandCreate{
 		Name:        "set-user",
 		Description: "link your Last.fm username to your Discord account",
@@ -33,7 +34,7 @@ func (SetUserCommand) Data() discord.ApplicationCommandCreate {
 	}
 }
 
-func (SetUserCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx CommandContext) {
+func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := res.Reply(e)
 
 	if err := reply.Defer(); err != nil {
@@ -80,8 +81,4 @@ func (SetUserCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx 
 		logger.Log.Errorf("unexpected DB error in /set-user: %v", err)
 		_ = res.ErrorReply(e, "an unexpected error occurred, please try again later")
 	}
-}
-
-func init() {
-	Register(SetUserCommand{})
 }

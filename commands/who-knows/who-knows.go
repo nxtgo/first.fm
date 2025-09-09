@@ -1,4 +1,4 @@
-package commands
+package whoknows
 
 import (
 	"context"
@@ -10,11 +10,12 @@ import (
 
 	"go.fm/lastfm"
 	"go.fm/util/res"
+	"go.fm/util/shared/cmd"
 )
 
-type WhoKnowsCommand struct{}
+type Command struct{}
 
-func (WhoKnowsCommand) Data() discord.ApplicationCommandCreate {
+func (Command) Data() discord.ApplicationCommandCreate {
 	return discord.SlashCommandCreate{
 		Name:        "who-knows",
 		Description: "see who in this guild has listened to a track/artist/album the most",
@@ -50,7 +51,7 @@ func (WhoKnowsCommand) Data() discord.ApplicationCommandCreate {
 	}
 }
 
-func (WhoKnowsCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx CommandContext) {
+func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := res.Reply(e)
 
 	if err := reply.Defer(); err != nil {
@@ -140,8 +141,4 @@ func (WhoKnowsCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx
 	}
 
 	_ = reply.Content(msg).Send()
-}
-
-func init() {
-	Register(WhoKnowsCommand{})
 }

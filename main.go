@@ -18,8 +18,10 @@ import (
 	"go.fm/db"
 	"go.fm/lastfm"
 	"go.fm/logger"
+	"go.fm/util/shared/cmd"
 
 	_ "embed"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -57,7 +59,7 @@ func main() {
 	}
 
 	database := db.New(dbConn)
-	ctx := commands.CommandContext{
+	ctx := cmd.CommandContext{
 		LastFM:   lfm,
 		Database: database,
 	}

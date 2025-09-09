@@ -1,4 +1,4 @@
-package commands
+package fm
 
 import (
 	"fmt"
@@ -8,11 +8,12 @@ import (
 
 	"go.fm/util/opts"
 	"go.fm/util/res"
+	"go.fm/util/shared/cmd"
 )
 
-type FmCommand struct{}
+type Command struct{}
 
-func (FmCommand) Data() discord.ApplicationCommandCreate {
+func (Command) Data() discord.ApplicationCommandCreate {
 	return discord.SlashCommandCreate{
 		Name:        "fm",
 		Description: "get an user's current track",
@@ -26,7 +27,7 @@ func (FmCommand) Data() discord.ApplicationCommandCreate {
 	}
 }
 
-func (FmCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx CommandContext) {
+func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := res.Reply(e)
 
 	if err := reply.Defer(); err != nil {
@@ -72,8 +73,4 @@ func (FmCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx Comma
 	}
 
 	_ = reply.Embed(embed).Send()
-}
-
-func init() {
-	Register(FmCommand{})
 }
