@@ -34,5 +34,5 @@ func (c *Client) req(method string, params map[string]string, target any) error 
 		request = request.Query(k, v)
 	}
 
-	return request.JSON(&target)
+	return request.JSON(target)
 }

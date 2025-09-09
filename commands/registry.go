@@ -4,16 +4,15 @@ import (
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
-	"github.com/nxtgo/zlog"
-	"go.fm/cache"
+	"go.fm/bot/cache"
+	"go.fm/db"
 	"go.fm/lastfm"
-	"go.fm/logger"
-	"go.fm/util"
 )
 
 type CommandContext struct {
-	LastFM *lastfm.Client
-	Cache  *cache.CustomCaches
+	LastFM   *lastfm.Client
+	Cache    *cache.CustomCaches
+	Database *db.Queries
 }
 
 type Command interface {
@@ -46,22 +45,6 @@ func Handler() bot.EventListener {
 	return &events.ListenerAdapter{
 		OnApplicationCommandInteraction: func(e *events.ApplicationCommandInteractionCreate) {
 			if cmd, ok := registry[e.Data.CommandName()]; ok {
-				guild, err := sharedCtx.Cache.Guild(*e.GuildID())
-				if !err {
-					_ = util.Reply(e).Content("you can't use me outside guilds :(").Send()
-					return
-				}
-
-				logger.Log.Debugw(
-					"ran command %s in guild %s",
-					zlog.F{
-						"gid": guild.ID.String(),
-						"uid": e.Member().User.ID.String(),
-					},
-					e.Data.CommandName(),
-					guild.Name,
-				)
-
 				cmd.Handle(e, sharedCtx)
 			}
 		},
