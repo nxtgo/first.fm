@@ -6,6 +6,43 @@ type WhoKnowsResult struct {
 	PlayCount int
 }
 
+type TrackInfoResponse struct {
+	Track struct {
+		Name       string `json:"name"`
+		Mbid       string `json:"mbid"`
+		URL        string `json:"url"`
+		Duration   string `json:"duration"`
+		Streamable struct {
+			Text      string `json:"#text"`
+			Fulltrack string `json:"fulltrack"`
+		} `json:"streamable"`
+		Listeners string `json:"listeners"`
+		Playcount string `json:"playcount"`
+		Artist    struct {
+			Name string `json:"name"`
+			Mbid string `json:"mbid"`
+			URL  string `json:"url"`
+		} `json:"artist"`
+		Album struct {
+			Artist string `json:"artist"`
+			Title  string `json:"title"`
+			URL    string `json:"url"`
+			Image  []struct {
+				Text string `json:"#text"`
+				Size string `json:"size"`
+			} `json:"image"`
+		} `json:"album"`
+		Toptags struct {
+			Tag []any `json:"tag"`
+		} `json:"toptags"` // todo
+		Wiki struct {
+			Published string `json:"published"`
+			Summary   string `json:"summary"`
+			Content   string `json:"content"`
+		} `json:"wiki"`
+	} `json:"track"`
+}
+
 type UserInfoResponse struct {
 	User struct {
 		Name        string `json:"name"`

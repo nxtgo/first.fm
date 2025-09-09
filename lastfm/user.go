@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
@@ -80,7 +81,7 @@ func (c *Client) GetUserPlays(user, queryType, queryName string, limit int) (int
 			return 0, err
 		}
 		for _, a := range resp.TopArtists.Artist {
-			if a.Name == queryName {
+			if strings.EqualFold(a.Name, queryName) {
 				fmt.Sscanf(a.Playcount, "%d", &playCount)
 				break
 			}
@@ -93,7 +94,7 @@ func (c *Client) GetUserPlays(user, queryType, queryName string, limit int) (int
 			return 0, err
 		}
 		for _, a := range resp.TopAlbums.Album {
-			if a.Name == queryName {
+			if strings.EqualFold(a.Name, queryName) {
 				fmt.Sscanf(a.Playcount, "%d", &playCount)
 				break
 			}
@@ -106,7 +107,7 @@ func (c *Client) GetUserPlays(user, queryType, queryName string, limit int) (int
 			return 0, err
 		}
 		for _, t := range resp.TopTracks.Track {
-			if t.Name == queryName {
+			if strings.EqualFold(t.Name, queryName) {
 				fmt.Sscanf(t.Playcount, "%d", &playCount)
 				break
 			}
