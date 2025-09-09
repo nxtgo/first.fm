@@ -5,6 +5,7 @@ import (
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+
 	"go.fm/util/opts"
 	"go.fm/util/res"
 )
@@ -56,7 +57,6 @@ func (FmCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx Comma
 		return
 	}
 
-	// build embed
 	embed := res.QuickEmbed(
 		track.Name,
 		fmt.Sprintf("by **%s**\n-# *at %s*", track.Artist.Text, track.Album.Text),
@@ -71,7 +71,6 @@ func (FmCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx Comma
 		embed.Thumbnail = &discord.EmbedResource{URL: track.Image[len(track.Image)-1].Text}
 	}
 
-	// edit deferred reply with embed (public)
 	_ = reply.Embed(embed).Send()
 }
 

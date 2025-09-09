@@ -6,6 +6,7 @@ import (
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+
 	"go.fm/db"
 	"go.fm/lastfm"
 )
