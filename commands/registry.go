@@ -1,18 +1,20 @@
 package commands
 
 import (
+	"context"
+
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
-	"go.fm/bot/cache"
 	"go.fm/db"
 	"go.fm/lastfm"
 )
 
 type CommandContext struct {
-	LastFM   *lastfm.Client
-	Cache    *cache.CustomCaches
-	Database *db.Queries
+	LastFM       *lastfm.Client
+	Database     *db.Queries
+	QueryContext context.Context
+	Context      context.Context
 }
 
 type Command interface {

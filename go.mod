@@ -7,7 +7,6 @@ require (
 	github.com/disgoorg/snowflake/v2 v2.0.3
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/nxtgo/env v0.0.0-20250905234547-f627e8d51f13
-	github.com/nxtgo/gache v0.0.0-20250908184021-a6437a19360c
 	github.com/nxtgo/httpx v0.0.0-20250907174629-d2a9422bcbcf
 	github.com/nxtgo/zlog v0.0.0-20250905224555-91d56b347e9b
 )

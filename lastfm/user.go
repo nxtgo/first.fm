@@ -1,9 +1,40 @@
 package lastfm
 
 import (
+	"context"
 	"fmt"
 	"sort"
+
+	"github.com/disgoorg/disgo/discord"
+	"github.com/disgoorg/disgo/events"
+	"github.com/disgoorg/snowflake/v2"
+	"go.fm/db"
 )
+
+func GetUsersByGuild(
+	ctx context.Context,
+	e *events.ApplicationCommandInteractionCreate,
+	q *db.Queries,
+) (map[string]string, error) {
+	registered, err := q.ListUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	memberIDs := make(map[snowflake.ID]struct{})
+	e.Client().Caches().MembersForEach(*e.GuildID(), func(m discord.Member) {
+		memberIDs[m.User.ID] = struct{}{}
+	})
+
+	users := make(map[string]string)
+	for _, u := range registered {
+		if _, ok := memberIDs[snowflake.MustParse(u.DiscordID)]; ok {
+			users[u.DiscordID] = u.LastfmUsername
+		}
+	}
+
+	return users, nil
+}
 
 func (c *Client) GetUserInfo(user string) (*UserInfoResponse, error) {
 	params := map[string]string{

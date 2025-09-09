@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
-	"go.fm/bot/cache"
+	"go.fm/lastfm"
 	"go.fm/util/res"
 )
 
@@ -61,7 +60,7 @@ func (WhoKnowsCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx
 	tType := e.SlashCommandInteractionData().String("type")
 	name, defined := e.SlashCommandInteractionData().OptString("name")
 	if !defined {
-		currentUser, err := ctx.Database.GetUserByDiscordID(
+		currentUser, err := ctx.Database.GetUser(
 			context.Background(),
 			e.Member().User.ID.String(),
 		)
@@ -70,7 +69,7 @@ func (WhoKnowsCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx
 			return
 		}
 
-		tracks, err := ctx.LastFM.GetRecentTracks(currentUser.Username, 1)
+		tracks, err := ctx.LastFM.GetRecentTracks(currentUser, 1)
 		current := tracks.RecentTracks.Track[0]
 		if err != nil || current.Attr.Nowplaying == "false" {
 			_ = res.ErrorReply(e, "could not fetch your current track/artist/album")
@@ -92,7 +91,7 @@ func (WhoKnowsCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx
 		}
 	}
 
-	users, err := ctx.Database.GetUsersByGuild(context.Background(), e.GuildID().String())
+	users, err := lastfm.GetUsersByGuild(context.Background(), e, ctx.Database)
 	if err != nil {
 		_ = res.ErrorReply(e, err.Error())
 		return
@@ -106,10 +105,8 @@ func (WhoKnowsCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx
 
 	results := make([]result, 0)
 
-	for _, user := range users {
-		count, err := whoKnowCache.GetOrFetch(user.Username, func(username string) (int, error) {
-			return ctx.LastFM.GetUserPlays(username, tType, name, 1000)
-		})
+	for id, username := range users {
+		count, err := ctx.LastFM.GetUserPlays(username, tType, name, 1000)
 		if err != nil {
 			continue
 		}
@@ -118,8 +115,8 @@ func (WhoKnowsCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx
 		}
 
 		results = append(results, result{
-			UserID:    user.DiscordID,
-			Username:  user.Username,
+			UserID:    id,
+			Username:  username,
 			PlayCount: count,
 		})
 	}
@@ -144,9 +141,6 @@ func (WhoKnowsCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx
 	_ = reply.Content(msg).Send()
 }
 
-var whoKnowCache *cache.FuncCache[string, int]
-
 func init() {
-	whoKnowCache = cache.NewFuncCache[string, int](time.Second * 60)
 	Register(WhoKnowsCommand{})
 }
