@@ -33,6 +33,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getUserByUsernameStmt, err = db.PrepareContext(ctx, getUserByUsername); err != nil {
 		return nil, fmt.Errorf("error preparing query GetUserByUsername: %w", err)
 	}
+	if q.getUserCountStmt, err = db.PrepareContext(ctx, getUserCount); err != nil {
+		return nil, fmt.Errorf("error preparing query GetUserCount: %w", err)
+	}
 	if q.listUsersStmt, err = db.PrepareContext(ctx, listUsers); err != nil {
 		return nil, fmt.Errorf("error preparing query ListUsers: %w", err)
 	}
@@ -57,6 +60,11 @@ func (q *Queries) Close() error {
 	if q.getUserByUsernameStmt != nil {
 		if cerr := q.getUserByUsernameStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getUserByUsernameStmt: %w", cerr)
+		}
+	}
+	if q.getUserCountStmt != nil {
+		if cerr := q.getUserCountStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getUserCountStmt: %w", cerr)
 		}
 	}
 	if q.listUsersStmt != nil {
@@ -111,6 +119,7 @@ type Queries struct {
 	deleteUserStmt        *sql.Stmt
 	getUserStmt           *sql.Stmt
 	getUserByUsernameStmt *sql.Stmt
+	getUserCountStmt      *sql.Stmt
 	listUsersStmt         *sql.Stmt
 	upsertUserStmt        *sql.Stmt
 }
@@ -122,6 +131,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteUserStmt:        q.deleteUserStmt,
 		getUserStmt:           q.getUserStmt,
 		getUserByUsernameStmt: q.getUserByUsernameStmt,
+		getUserCountStmt:      q.getUserCountStmt,
 		listUsersStmt:         q.listUsersStmt,
 		upsertUserStmt:        q.upsertUserStmt,
 	}

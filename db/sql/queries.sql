@@ -12,6 +12,10 @@ WHERE lastfm_username = ?;
 SELECT discord_id, lastfm_username
 FROM users;
 
+-- name: GetUserCount :one
+SELECT COUNT(*) AS count
+FROM users;
+
 -- name: UpsertUser :exec
 INSERT INTO users (discord_id, lastfm_username)
 VALUES (?, ?)

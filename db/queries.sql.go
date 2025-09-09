@@ -45,6 +45,18 @@ func (q *Queries) GetUserByUsername(ctx context.Context, lastfmUsername string) 
 	return i, err
 }
 
+const getUserCount = `-- name: GetUserCount :one
+SELECT COUNT(*) AS count
+FROM users
+`
+
+func (q *Queries) GetUserCount(ctx context.Context) (int64, error) {
+	row := q.queryRow(ctx, q.getUserCountStmt, getUserCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT discord_id, lastfm_username
 FROM users

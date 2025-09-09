@@ -1,10 +1,14 @@
 package commands
 
 import (
+	"context"
+	"time"
+
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 
+	"go.fm/commands/botinfo"
 	"go.fm/commands/fm"
 	setuser "go.fm/commands/set-user"
 	whoknows "go.fm/commands/who-knows"
@@ -18,6 +22,9 @@ func init() {
 	Register(fm.Command{})
 	Register(whoknows.Command{})
 	Register(setuser.Command{})
+
+	// non-lastfm commands :prayge:
+	Register(botinfo.Command{})
 }
 
 type Command interface {
@@ -39,6 +46,8 @@ func All() []discord.ApplicationCommandCreate {
 }
 
 func InitDependencies(ctx cmd.CommandContext) {
+	ctx.Start = time.Now()
+	ctx.Context = context.Background()
 	sharedCtx = ctx
 }
 
