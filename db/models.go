@@ -4,8 +4,7 @@
 
 package db
 
-type LastfmUser struct {
-	GuildID   string `json:"guild_id"`
-	DiscordID string `json:"discord_id"`
-	Username  string `json:"username"`
+type User struct {
+	DiscordID      string `json:"discord_id"`
+	LastfmUsername string `json:"lastfm_username"`
 }

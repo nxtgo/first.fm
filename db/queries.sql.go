@@ -10,108 +10,68 @@ import (
 )
 
 const deleteUser = `-- name: DeleteUser :exec
-DELETE FROM lastfm_users
-WHERE guild_id = ?1 AND discord_id = ?2
+DELETE FROM users
+WHERE discord_id = ?
 `
 
-type DeleteUserParams struct {
-	GuildID   string `json:"guild_id"`
-	DiscordID string `json:"discord_id"`
-}
-
-func (q *Queries) DeleteUser(ctx context.Context, arg DeleteUserParams) error {
-	_, err := q.exec(ctx, q.deleteUserStmt, deleteUser, arg.GuildID, arg.DiscordID)
+func (q *Queries) DeleteUser(ctx context.Context, discordID string) error {
+	_, err := q.exec(ctx, q.deleteUserStmt, deleteUser, discordID)
 	return err
 }
 
-const getDiscordByUsernameAndGuild = `-- name: GetDiscordByUsernameAndGuild :one
-SELECT discord_id, guild_id, username
-FROM lastfm_users
-WHERE username = ?1 AND guild_id = ?2
-LIMIT 1
+const getUser = `-- name: GetUser :one
+SELECT lastfm_username
+FROM users
+WHERE discord_id = ?
 `
 
-type GetDiscordByUsernameAndGuildParams struct {
-	Username string `json:"username"`
-	GuildID  string `json:"guild_id"`
+func (q *Queries) GetUser(ctx context.Context, discordID string) (string, error) {
+	row := q.queryRow(ctx, q.getUserStmt, getUser, discordID)
+	var lastfm_username string
+	err := row.Scan(&lastfm_username)
+	return lastfm_username, err
 }
 
-type GetDiscordByUsernameAndGuildRow struct {
-	DiscordID string `json:"discord_id"`
-	GuildID   string `json:"guild_id"`
-	Username  string `json:"username"`
-}
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT discord_id, lastfm_username
+FROM users
+WHERE lastfm_username = ?
+`
 
-func (q *Queries) GetDiscordByUsernameAndGuild(ctx context.Context, arg GetDiscordByUsernameAndGuildParams) (GetDiscordByUsernameAndGuildRow, error) {
-	row := q.queryRow(ctx, q.getDiscordByUsernameAndGuildStmt, getDiscordByUsernameAndGuild, arg.Username, arg.GuildID)
-	var i GetDiscordByUsernameAndGuildRow
-	err := row.Scan(&i.DiscordID, &i.GuildID, &i.Username)
+func (q *Queries) GetUserByUsername(ctx context.Context, lastfmUsername string) (User, error) {
+	row := q.queryRow(ctx, q.getUserByUsernameStmt, getUserByUsername, lastfmUsername)
+	var i User
+	err := row.Scan(&i.DiscordID, &i.LastfmUsername)
 	return i, err
 }
 
-const getUserByDiscordID = `-- name: GetUserByDiscordID :one
-SELECT username, guild_id FROM lastfm_users
-WHERE discord_id = ?1
-LIMIT 1
+const getUserCount = `-- name: GetUserCount :one
+SELECT COUNT(*) AS count
+FROM users
 `
 
-type GetUserByDiscordIDRow struct {
-	Username string `json:"username"`
-	GuildID  string `json:"guild_id"`
+func (q *Queries) GetUserCount(ctx context.Context) (int64, error) {
+	row := q.queryRow(ctx, q.getUserCountStmt, getUserCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
-func (q *Queries) GetUserByDiscordID(ctx context.Context, discordID string) (GetUserByDiscordIDRow, error) {
-	row := q.queryRow(ctx, q.getUserByDiscordIDStmt, getUserByDiscordID, discordID)
-	var i GetUserByDiscordIDRow
-	err := row.Scan(&i.Username, &i.GuildID)
-	return i, err
-}
-
-const getUserByDiscordIDAndGuild = `-- name: GetUserByDiscordIDAndGuild :one
-SELECT discord_id, guild_id, username
-FROM lastfm_users
-WHERE discord_id = ?1 AND guild_id = ?2
-LIMIT 1
+const listUsers = `-- name: ListUsers :many
+SELECT discord_id, lastfm_username
+FROM users
 `
 
-type GetUserByDiscordIDAndGuildParams struct {
-	DiscordID string `json:"discord_id"`
-	GuildID   string `json:"guild_id"`
-}
-
-type GetUserByDiscordIDAndGuildRow struct {
-	DiscordID string `json:"discord_id"`
-	GuildID   string `json:"guild_id"`
-	Username  string `json:"username"`
-}
-
-func (q *Queries) GetUserByDiscordIDAndGuild(ctx context.Context, arg GetUserByDiscordIDAndGuildParams) (GetUserByDiscordIDAndGuildRow, error) {
-	row := q.queryRow(ctx, q.getUserByDiscordIDAndGuildStmt, getUserByDiscordIDAndGuild, arg.DiscordID, arg.GuildID)
-	var i GetUserByDiscordIDAndGuildRow
-	err := row.Scan(&i.DiscordID, &i.GuildID, &i.Username)
-	return i, err
-}
-
-const getUsersByGuild = `-- name: GetUsersByGuild :many
-SELECT discord_id, username FROM lastfm_users
-WHERE guild_id = ?1
-`
-
-type GetUsersByGuildRow struct {
-	DiscordID string `json:"discord_id"`
-	Username  string `json:"username"`
-}
-
-func (q *Queries) GetUsersByGuild(ctx context.Context, guildID string) ([]GetUsersByGuildRow, error) {
-	rows, err := q.query(ctx, q.getUsersByGuildStmt, getUsersByGuild, guildID)
+func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.query(ctx, q.listUsersStmt, listUsers)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetUsersByGuildRow
+	var items []User
 	for rows.Next() {
-		var i GetUsersByGuildRow
-		if err := rows.Scan(&i.DiscordID, &i.Username); err != nil {
+		var i User
+		if err := rows.Scan(&i.DiscordID, &i.LastfmUsername); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -125,36 +85,19 @@ func (q *Queries) GetUsersByGuild(ctx context.Context, guildID string) ([]GetUse
 	return items, nil
 }
 
-const insertUser = `-- name: InsertUser :exec
-INSERT INTO lastfm_users (guild_id, discord_id, username)
-VALUES (?1, ?2, ?3)
-ON CONFLICT(guild_id, discord_id) DO UPDATE SET username = excluded.username
+const upsertUser = `-- name: UpsertUser :exec
+INSERT INTO users (discord_id, lastfm_username)
+VALUES (?, ?)
+ON CONFLICT(discord_id) DO UPDATE
+SET lastfm_username = excluded.lastfm_username
 `
 
-type InsertUserParams struct {
-	GuildID   string `json:"guild_id"`
-	DiscordID string `json:"discord_id"`
-	Username  string `json:"username"`
+type UpsertUserParams struct {
+	DiscordID      string `json:"discord_id"`
+	LastfmUsername string `json:"lastfm_username"`
 }
 
-func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) error {
-	_, err := q.exec(ctx, q.insertUserStmt, insertUser, arg.GuildID, arg.DiscordID, arg.Username)
-	return err
-}
-
-const updateUsername = `-- name: UpdateUsername :exec
-UPDATE lastfm_users
-SET username = ?3
-WHERE discord_id = ?1 AND guild_id = ?2
-`
-
-type UpdateUsernameParams struct {
-	DiscordID string `json:"discord_id"`
-	GuildID   string `json:"guild_id"`
-	Username  string `json:"username"`
-}
-
-func (q *Queries) UpdateUsername(ctx context.Context, arg UpdateUsernameParams) error {
-	_, err := q.exec(ctx, q.updateUsernameStmt, updateUsername, arg.DiscordID, arg.GuildID, arg.Username)
+func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) error {
+	_, err := q.exec(ctx, q.upsertUserStmt, upsertUser, arg.DiscordID, arg.LastfmUsername)
 	return err
 }

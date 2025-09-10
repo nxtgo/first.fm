@@ -1,17 +1,19 @@
-package commands
+package fm
 
 import (
 	"fmt"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+
 	"go.fm/util/opts"
 	"go.fm/util/res"
+	"go.fm/util/shared/cmd"
 )
 
-type FmCommand struct{}
+type Command struct{}
 
-func (FmCommand) Data() discord.ApplicationCommandCreate {
+func (Command) Data() discord.ApplicationCommandCreate {
 	return discord.SlashCommandCreate{
 		Name:        "fm",
 		Description: "get an user's current track",
@@ -25,7 +27,7 @@ func (FmCommand) Data() discord.ApplicationCommandCreate {
 	}
 }
 
-func (FmCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx CommandContext) {
+func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := res.Reply(e)
 
 	if err := reply.Defer(); err != nil {
@@ -41,7 +43,7 @@ func (FmCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx Comma
 
 	data, err := ctx.LastFM.GetRecentTracks(user, 1)
 	if err != nil {
-		_ = res.ErrorReply(e, "failed to fetch Last.fm data")
+		_ = res.ErrorReply(e, "failed to fetch last.fm data")
 		return
 	}
 
@@ -56,7 +58,6 @@ func (FmCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx Comma
 		return
 	}
 
-	// build embed
 	embed := res.QuickEmbed(
 		track.Name,
 		fmt.Sprintf("by **%s**\n-# *at %s*", track.Artist.Text, track.Album.Text),
@@ -71,10 +72,5 @@ func (FmCommand) Handle(e *events.ApplicationCommandInteractionCreate, ctx Comma
 		embed.Thumbnail = &discord.EmbedResource{URL: track.Image[len(track.Image)-1].Text}
 	}
 
-	// edit deferred reply with embed (public)
 	_ = reply.Embed(embed).Send()
-}
-
-func init() {
-	Register(FmCommand{})
 }

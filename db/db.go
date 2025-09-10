@@ -27,23 +27,20 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteUserStmt, err = db.PrepareContext(ctx, deleteUser); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteUser: %w", err)
 	}
-	if q.getDiscordByUsernameAndGuildStmt, err = db.PrepareContext(ctx, getDiscordByUsernameAndGuild); err != nil {
-		return nil, fmt.Errorf("error preparing query GetDiscordByUsernameAndGuild: %w", err)
+	if q.getUserStmt, err = db.PrepareContext(ctx, getUser); err != nil {
+		return nil, fmt.Errorf("error preparing query GetUser: %w", err)
 	}
-	if q.getUserByDiscordIDStmt, err = db.PrepareContext(ctx, getUserByDiscordID); err != nil {
-		return nil, fmt.Errorf("error preparing query GetUserByDiscordID: %w", err)
+	if q.getUserByUsernameStmt, err = db.PrepareContext(ctx, getUserByUsername); err != nil {
+		return nil, fmt.Errorf("error preparing query GetUserByUsername: %w", err)
 	}
-	if q.getUserByDiscordIDAndGuildStmt, err = db.PrepareContext(ctx, getUserByDiscordIDAndGuild); err != nil {
-		return nil, fmt.Errorf("error preparing query GetUserByDiscordIDAndGuild: %w", err)
+	if q.getUserCountStmt, err = db.PrepareContext(ctx, getUserCount); err != nil {
+		return nil, fmt.Errorf("error preparing query GetUserCount: %w", err)
 	}
-	if q.getUsersByGuildStmt, err = db.PrepareContext(ctx, getUsersByGuild); err != nil {
-		return nil, fmt.Errorf("error preparing query GetUsersByGuild: %w", err)
+	if q.listUsersStmt, err = db.PrepareContext(ctx, listUsers); err != nil {
+		return nil, fmt.Errorf("error preparing query ListUsers: %w", err)
 	}
-	if q.insertUserStmt, err = db.PrepareContext(ctx, insertUser); err != nil {
-		return nil, fmt.Errorf("error preparing query InsertUser: %w", err)
-	}
-	if q.updateUsernameStmt, err = db.PrepareContext(ctx, updateUsername); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateUsername: %w", err)
+	if q.upsertUserStmt, err = db.PrepareContext(ctx, upsertUser); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertUser: %w", err)
 	}
 	return &q, nil
 }
@@ -55,34 +52,29 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteUserStmt: %w", cerr)
 		}
 	}
-	if q.getDiscordByUsernameAndGuildStmt != nil {
-		if cerr := q.getDiscordByUsernameAndGuildStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getDiscordByUsernameAndGuildStmt: %w", cerr)
+	if q.getUserStmt != nil {
+		if cerr := q.getUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getUserStmt: %w", cerr)
 		}
 	}
-	if q.getUserByDiscordIDStmt != nil {
-		if cerr := q.getUserByDiscordIDStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getUserByDiscordIDStmt: %w", cerr)
+	if q.getUserByUsernameStmt != nil {
+		if cerr := q.getUserByUsernameStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getUserByUsernameStmt: %w", cerr)
 		}
 	}
-	if q.getUserByDiscordIDAndGuildStmt != nil {
-		if cerr := q.getUserByDiscordIDAndGuildStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getUserByDiscordIDAndGuildStmt: %w", cerr)
+	if q.getUserCountStmt != nil {
+		if cerr := q.getUserCountStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getUserCountStmt: %w", cerr)
 		}
 	}
-	if q.getUsersByGuildStmt != nil {
-		if cerr := q.getUsersByGuildStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getUsersByGuildStmt: %w", cerr)
+	if q.listUsersStmt != nil {
+		if cerr := q.listUsersStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listUsersStmt: %w", cerr)
 		}
 	}
-	if q.insertUserStmt != nil {
-		if cerr := q.insertUserStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing insertUserStmt: %w", cerr)
-		}
-	}
-	if q.updateUsernameStmt != nil {
-		if cerr := q.updateUsernameStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateUsernameStmt: %w", cerr)
+	if q.upsertUserStmt != nil {
+		if cerr := q.upsertUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertUserStmt: %w", cerr)
 		}
 	}
 	return err
@@ -122,27 +114,25 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                               DBTX
-	tx                               *sql.Tx
-	deleteUserStmt                   *sql.Stmt
-	getDiscordByUsernameAndGuildStmt *sql.Stmt
-	getUserByDiscordIDStmt           *sql.Stmt
-	getUserByDiscordIDAndGuildStmt   *sql.Stmt
-	getUsersByGuildStmt              *sql.Stmt
-	insertUserStmt                   *sql.Stmt
-	updateUsernameStmt               *sql.Stmt
+	db                    DBTX
+	tx                    *sql.Tx
+	deleteUserStmt        *sql.Stmt
+	getUserStmt           *sql.Stmt
+	getUserByUsernameStmt *sql.Stmt
+	getUserCountStmt      *sql.Stmt
+	listUsersStmt         *sql.Stmt
+	upsertUserStmt        *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                               tx,
-		tx:                               tx,
-		deleteUserStmt:                   q.deleteUserStmt,
-		getDiscordByUsernameAndGuildStmt: q.getDiscordByUsernameAndGuildStmt,
-		getUserByDiscordIDStmt:           q.getUserByDiscordIDStmt,
-		getUserByDiscordIDAndGuildStmt:   q.getUserByDiscordIDAndGuildStmt,
-		getUsersByGuildStmt:              q.getUsersByGuildStmt,
-		insertUserStmt:                   q.insertUserStmt,
-		updateUsernameStmt:               q.updateUsernameStmt,
+		db:                    tx,
+		tx:                    tx,
+		deleteUserStmt:        q.deleteUserStmt,
+		getUserStmt:           q.getUserStmt,
+		getUserByUsernameStmt: q.getUserByUsernameStmt,
+		getUserCountStmt:      q.getUserCountStmt,
+		listUsersStmt:         q.listUsersStmt,
+		upsertUserStmt:        q.upsertUserStmt,
 	}
 }

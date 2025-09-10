@@ -1,26 +1,36 @@
 package commands
 
 import (
+	"context"
+	"time"
+
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
-	"go.fm/bot/cache"
-	"go.fm/db"
-	"go.fm/lastfm"
+
+	"go.fm/commands/botinfo"
+	"go.fm/commands/fm"
+	setuser "go.fm/commands/set-user"
+	whoknows "go.fm/commands/who-knows"
+	"go.fm/util/shared/cmd"
 )
 
-type CommandContext struct {
-	LastFM   *lastfm.Client
-	Cache    *cache.CustomCaches
-	Database *db.Queries
+var sharedCtx cmd.CommandContext
+var registry = map[string]Command{}
+
+func init() {
+	Register(fm.Command{})
+	Register(whoknows.Command{})
+	Register(setuser.Command{})
+
+	// non-lastfm commands :prayge:
+	Register(botinfo.Command{})
 }
 
 type Command interface {
 	Data() discord.ApplicationCommandCreate
-	Handle(e *events.ApplicationCommandInteractionCreate, ctx CommandContext)
+	Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext)
 }
-
-var registry = map[string]Command{}
 
 func Register(cmd Command) {
 	registry[cmd.Data().CommandName()] = cmd
@@ -35,9 +45,9 @@ func All() []discord.ApplicationCommandCreate {
 	return cmds
 }
 
-var sharedCtx CommandContext
-
-func InitDependencies(ctx CommandContext) {
+func InitDependencies(ctx cmd.CommandContext) {
+	ctx.Start = time.Now()
+	ctx.Context = context.Background()
 	sharedCtx = ctx
 }
 

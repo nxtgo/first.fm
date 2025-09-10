@@ -1,29 +1,27 @@
--- name: InsertUser :exec
-INSERT INTO lastfm_users (discord_id, username)
-VALUES (?1, ?2, ?3)
-ON CONFLICT(discord_id) DO UPDATE SET username = excluded.username;
+-- name: GetUser :one
+SELECT lastfm_username
+FROM users
+WHERE discord_id = ?;
 
--- name: GetUsersByGuild :many
-SELECT discord_id, username FROM lastfm_users
-WHERE guild_id = ?1;
+-- name: GetUserByUsername :one
+SELECT discord_id, lastfm_username
+FROM users
+WHERE lastfm_username = ?;
+
+-- name: ListUsers :many
+SELECT discord_id, lastfm_username
+FROM users;
+
+-- name: GetUserCount :one
+SELECT COUNT(*) AS count
+FROM users;
+
+-- name: UpsertUser :exec
+INSERT INTO users (discord_id, lastfm_username)
+VALUES (?, ?)
+ON CONFLICT(discord_id) DO UPDATE
+SET lastfm_username = excluded.lastfm_username;
 
 -- name: DeleteUser :exec
-DELETE FROM lastfm_users
-WHERE guild_id = ?1 AND discord_id = ?2;
-
--- name: GetUserByDiscordID :one
-SELECT username FROM lastfm_users
-WHERE discord_id = ?1
-LIMIT 1;
-
--- name: UpdateUsername :exec
-UPDATE lastfm_users
-SET username = ?3
-WHERE discord_id = ?1;
-
--- name: GetDiscordByUsername :one
-SELECT discord_id, username
-FROM lastfm_users
-WHERE username = ?1
-LIMIT 1;
-
+DELETE FROM users
+WHERE discord_id = ?;

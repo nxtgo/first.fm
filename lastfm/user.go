@@ -1,9 +1,42 @@
 package lastfm
 
 import (
+	"context"
 	"fmt"
 	"sort"
+	"strings"
+
+	"github.com/disgoorg/disgo/discord"
+	"github.com/disgoorg/disgo/events"
+	"github.com/disgoorg/snowflake/v2"
+
+	"go.fm/db"
 )
+
+func GetUsersByGuild(
+	ctx context.Context,
+	e *events.ApplicationCommandInteractionCreate,
+	q *db.Queries,
+) (map[string]string, error) {
+	registered, err := q.ListUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	memberIDs := make(map[snowflake.ID]struct{})
+	e.Client().Caches().MembersForEach(*e.GuildID(), func(m discord.Member) {
+		memberIDs[m.User.ID] = struct{}{}
+	})
+
+	users := make(map[string]string)
+	for _, u := range registered {
+		if _, ok := memberIDs[snowflake.MustParse(u.DiscordID)]; ok {
+			users[u.DiscordID] = u.LastfmUsername
+		}
+	}
+
+	return users, nil
+}
 
 func (c *Client) GetUserInfo(user string) (*UserInfoResponse, error) {
 	params := map[string]string{
@@ -48,7 +81,7 @@ func (c *Client) GetUserPlays(user, queryType, queryName string, limit int) (int
 			return 0, err
 		}
 		for _, a := range resp.TopArtists.Artist {
-			if a.Name == queryName {
+			if strings.EqualFold(a.Name, queryName) {
 				fmt.Sscanf(a.Playcount, "%d", &playCount)
 				break
 			}
@@ -61,7 +94,7 @@ func (c *Client) GetUserPlays(user, queryType, queryName string, limit int) (int
 			return 0, err
 		}
 		for _, a := range resp.TopAlbums.Album {
-			if a.Name == queryName {
+			if strings.EqualFold(a.Name, queryName) {
 				fmt.Sscanf(a.Playcount, "%d", &playCount)
 				break
 			}
@@ -74,7 +107,7 @@ func (c *Client) GetUserPlays(user, queryType, queryName string, limit int) (int
 			return 0, err
 		}
 		for _, t := range resp.TopTracks.Track {
-			if t.Name == queryName {
+			if strings.EqualFold(t.Name, queryName) {
 				fmt.Sscanf(t.Playcount, "%d", &playCount)
 				break
 			}
