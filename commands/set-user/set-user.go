@@ -19,7 +19,7 @@ type Command struct{}
 func (Command) Data() discord.ApplicationCommandCreate {
 	return discord.SlashCommandCreate{
 		Name:        "set-user",
-		Description: "link your Last.fm username to your Discord account",
+		Description: "link your last.fm username to your Discord account",
 		IntegrationTypes: []discord.ApplicationIntegrationType{
 			discord.ApplicationIntegrationTypeGuildInstall,
 			discord.ApplicationIntegrationTypeUserInstall,
@@ -27,7 +27,7 @@ func (Command) Data() discord.ApplicationCommandCreate {
 		Options: []discord.ApplicationCommandOption{
 			discord.ApplicationCommandOptionString{
 				Name:        "username",
-				Description: "your Last.fm username",
+				Description: "your last.fm username",
 				Required:    true,
 			},
 		},
@@ -47,18 +47,18 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	userInfo, err := ctx.LastFM.GetUserInfo(username)
 	if err != nil || userInfo.User.Name == "" {
-		_ = res.ErrorReply(e, "that username doesn't exist on Last.fm")
+		_ = res.ErrorReply(e, "that username doesn't exist on last.fm")
 		return
 	}
 
 	existing, err := ctx.Database.GetUserByUsername(context.Background(), username)
 	if err == nil {
 		if existing.DiscordID != discordID {
-			_ = res.ErrorReply(e, "that Last.fm username is already linked by another Discord user")
+			_ = res.ErrorReply(e, "that last.fm username is already linked by another Discord user")
 			return
 		}
 		if existing.LastfmUsername == username {
-			_ = reply.Content("your Last.fm username is already set to **%s**", username).Send()
+			_ = reply.Content("your last.fm username is already set to **%s**", username).Send()
 			return
 		}
 	}
@@ -69,11 +69,11 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			LastfmUsername: username,
 		}); dbErr != nil {
 			logger.Log.Errorf("failed to upsert user %s: %v", discordID, dbErr)
-			_ = res.ErrorReply(e, "failed to set your Last.fm username")
+			_ = res.ErrorReply(e, "failed to set your last.fm username")
 			return
 		}
 
-		_ = reply.Content("your Last.fm username has been set to **%s**", username).Send()
+		_ = reply.Content("your last.fm username has been set to **%s**", username).Send()
 		return
 	}
 

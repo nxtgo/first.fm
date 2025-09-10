@@ -43,7 +43,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	data, err := ctx.LastFM.GetRecentTracks(user, 1)
 	if err != nil {
-		_ = res.ErrorReply(e, "failed to fetch Last.fm data")
+		_ = res.ErrorReply(e, "failed to fetch last.fm data")
 		return
 	}
 
