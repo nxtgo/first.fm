@@ -8,6 +8,7 @@ import (
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 
+	"go.fm/constants"
 	"go.fm/lastfm"
 	"go.fm/util/res"
 	"go.fm/util/shared/cmd"
@@ -55,7 +56,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	reply := res.Reply(e)
 
 	if err := reply.Defer(); err != nil {
-		_ = res.ErrorReply(e, "failed to acknowledge command")
+		_ = res.ErrorReply(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
@@ -67,19 +68,19 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			e.Member().User.ID.String(),
 		)
 		if err != nil {
-			_ = res.ErrorReply(e, "could not get your last.fm username, use `/set-user`")
+			_ = res.ErrorReply(e, constants.ErrorGetUser)
 			return
 		}
 
 		tracks, err := ctx.LastFM.GetRecentTracks(currentUser, 1)
 		current := tracks.RecentTracks.Track[0]
 		if err != nil || current.Attr.Nowplaying == "false" {
-			_ = res.ErrorReply(e, "could not fetch your current track/artist/album")
+			_ = res.ErrorReply(e, constants.ErrorFetchCurrentTrack)
 			return
 		}
 
 		if current.Attr.Nowplaying != "true" {
-			_ = res.ErrorReply(e, "you're not currently playing any track")
+			_ = res.ErrorReply(e, constants.ErrorNotPlaying)
 			return
 		}
 
@@ -95,7 +96,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	users, err := lastfm.GetUsersByGuild(context.Background(), e, ctx.Database)
 	if err != nil {
-		_ = res.ErrorReply(e, err.Error())
+		_ = res.ErrorReply(e, constants.ErrorUnexpected)
 		return
 	}
 
@@ -123,7 +124,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		})
 	}
 	if len(results) == 0 {
-		_ = res.ErrorReply(e, "no one has listened to this yet")
+		_ = res.ErrorReply(e, constants.ErrorNoListeners)
 		return
 	}
 
