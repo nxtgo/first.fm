@@ -12,6 +12,8 @@ github.com/mattn/go-sqlite3 v1.14.32 h1:JD12Ag3oLy1zQA+BNn74xRgaBbdhbNIDYvQUEuuE
 github.com/mattn/go-sqlite3 v1.14.32/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
 github.com/nxtgo/env v0.0.0-20250905234547-f627e8d51f13 h1:hX0UuV5kUvn9CM9gpxMm+Xuhz2sU+HhHDQWMJb/XBMc=
 github.com/nxtgo/env v0.0.0-20250905234547-f627e8d51f13/go.mod h1:r0zexk0/D43emHcb+mMAoICHwZj1DYd887q8Z1xidpA=
+github.com/nxtgo/gce v0.0.0-20250910001932-ff8e22b0e630 h1:q6YDsr4P1r0iViA9p04SmBNVK2+wP6m6dLZsKXhPhDs=
+github.com/nxtgo/gce v0.0.0-20250910001932-ff8e22b0e630/go.mod h1:Lo1Rn6XM9r74u2JPtznKRojJuvZLd5e8V6dqUOP/yJo=
 github.com/nxtgo/httpx v0.0.0-20250907174629-d2a9422bcbcf h1:nIr7OvazF5Bvr9YV+aRKiaHQ2PJarFYV3aJVata9/bY=
 github.com/nxtgo/httpx v0.0.0-20250907174629-d2a9422bcbcf/go.mod h1:Pbkzy4EIiksqWmuahKZ881mkbISnsy+wNHJzmYUBTOg=
 github.com/nxtgo/zlog v0.0.0-20250905224555-91d56b347e9b h1:8NuRbM5rK9hkF82EDlMFNnSVdCd1IasK4faR1bbctWo=
