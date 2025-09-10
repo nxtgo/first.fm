@@ -40,7 +40,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	reply := res.Reply(e)
 
 	if err := reply.Defer(); err != nil {
-		_ = res.ErrorReply(e, constants.ErrorAcknowledgeCommand)
+		_ = res.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
@@ -49,18 +49,18 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	_, err := ctx.LastFM.GetUserInfo(username)
 	if err != nil {
-		_ = res.ErrorReply(e, constants.ErrorUserNotFound)
+		_ = res.Error(e, constants.ErrorUserNotFound)
 		return
 	}
 
 	existing, err := ctx.Database.GetUserByUsername(ctx.Context, username)
 	if err == nil {
 		if existing.DiscordID != discordID {
-			_ = res.ErrorReply(e, constants.ErrorAlreadyLinked)
+			_ = res.Error(e, constants.ErrorAlreadyLinked)
 			return
 		}
 		if existing.LastfmUsername == username {
-			_ = res.ErrorReply(e, fmt.Sprintf(constants.ErrorUsernameAlreadySet, username))
+			_ = res.Error(e, fmt.Sprintf(constants.ErrorUsernameAlreadySet, username))
 			return
 		}
 	}
@@ -70,17 +70,16 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			DiscordID:      discordID,
 			LastfmUsername: username,
 		}); dbErr != nil {
-			logger.Log.Errorw("failed to upsert user: %v", zlog.F{"gid": e.GuildID().String(), "uid": discordID}, dbErr)
-			_ = res.ErrorReply(e, constants.ErrorSetUsername)
+			logger.Log.Errorw("failed to upsert user", zlog.F{"gid": e.GuildID().String(), "uid": discordID}, dbErr)
+			_ = res.Error(e, constants.ErrorSetUsername)
 			return
 		}
 
-		_ = reply.Content("your last.fm username has been set to **%s**", username).Send()
-		return
+		reply.Content("your last.fm username has been set to **%s**", username).Edit()
 	}
 
 	if err != nil {
 		logger.Log.Errorf("unexpected DB error in /set-user: %v", err)
-		_ = res.ErrorReply(e, constants.ErrorUnexpected)
+		res.Error(e, constants.ErrorUnexpected)
 	}
 }

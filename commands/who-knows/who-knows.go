@@ -26,18 +26,9 @@ func (Command) Data() discord.ApplicationCommandCreate {
 				Name:        "type",
 				Description: "artist, track or album",
 				Choices: []discord.ApplicationCommandOptionChoiceString{
-					{
-						Name:  "artist",
-						Value: "artist",
-					},
-					{
-						Name:  "track",
-						Value: "track",
-					},
-					{
-						Name:  "album",
-						Value: "album",
-					},
+					{Name: "artist", Value: "artist"},
+					{Name: "track", Value: "track"},
+					{Name: "album", Value: "album"},
 				},
 				Required: true,
 			},
@@ -54,35 +45,28 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	reply := res.Reply(e)
 
 	if err := reply.Defer(); err != nil {
-		_ = res.ErrorReply(e, constants.ErrorAcknowledgeCommand)
+		_ = res.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
 	var img string
 	tType := e.SlashCommandInteractionData().String("type")
 	name, defined := e.SlashCommandInteractionData().OptString("name")
+
 	if !defined {
-		currentUser, err := ctx.Database.GetUser(
-			ctx.Context,
-			e.Member().User.ID.String(),
-		)
+		currentUser, err := ctx.Database.GetUser(ctx.Context, e.Member().User.ID.String())
 		if err != nil {
-			_ = res.ErrorReply(e, constants.ErrorGetUser)
+			_ = res.Error(e, constants.ErrorGetUser)
 			return
 		}
 
 		tracks, err := ctx.LastFM.GetRecentTracks(currentUser, 1)
+		if err != nil || len(tracks.RecentTracks.Track) == 0 || tracks.RecentTracks.Track[0].Attr.Nowplaying != "true" {
+			_ = res.Error(e, constants.ErrorFetchCurrentTrack)
+			return
+		}
+
 		current := tracks.RecentTracks.Track[0]
-		if err != nil || current.Attr.Nowplaying == "false" {
-			_ = res.ErrorReply(e, constants.ErrorFetchCurrentTrack)
-			return
-		}
-
-		if current.Attr.Nowplaying != "true" {
-			_ = res.ErrorReply(e, constants.ErrorNotPlaying)
-			return
-		}
-
 		img = current.Image[len(current.Image)-1].Text
 
 		switch tType {
@@ -97,7 +81,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	users, err := ctx.LastFM.GetUsersByGuild(ctx.Context, e, ctx.Database)
 	if err != nil {
-		_ = res.ErrorReply(e, constants.ErrorUnexpected)
+		_ = res.Error(e, constants.ErrorUnexpected)
 		return
 	}
 
@@ -108,13 +92,9 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	}
 
 	results := make([]result, 0)
-
 	for id, username := range users {
 		count, err := ctx.LastFM.GetUserPlays(username, tType, name, 1000)
-		if err != nil {
-			continue
-		}
-		if count == 0 {
+		if err != nil || count == 0 {
 			continue
 		}
 
@@ -126,7 +106,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	}
 
 	if len(results) == 0 {
-		_ = res.ErrorReply(e, constants.ErrorNoListeners)
+		_ = res.Error(e, constants.ErrorNoListeners)
 		return
 	}
 
@@ -135,7 +115,6 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	})
 
 	list := ""
-
 	for i, r := range results {
 		if i >= 10 {
 			break
@@ -143,13 +122,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		list += fmt.Sprintf("%d. [%s](<https://www.last.fm/user/%s>) (<@%s>) — %d plays\n", i+1, r.Username, r.Username, r.UserID, r.PlayCount)
 	}
 
-	embed := res.QuickEmbed(
-		name,
-		list,
-		0x00ADD8,
-	)
-	// todo: source url
-
+	embed := res.QuickEmbed(name, list)
 	embed.Author = &discord.EmbedAuthor{Name: "who listened more to..."}
 	embed.Thumbnail = &discord.EmbedResource{URL: img}
 

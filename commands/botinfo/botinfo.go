@@ -26,9 +26,10 @@ func (Command) Data() discord.ApplicationCommandCreate {
 }
 
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	err := res.Reply(e).Defer()
-	if err != nil {
-		_ = res.ErrorReply(e, constants.ErrorAcknowledgeCommand)
+	reply := res.Reply(e)
+
+	if err := reply.Defer(); err != nil {
+		_ = res.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
@@ -50,7 +51,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"  - sys: %.2f MB\n"+
 			"uptime: %s\n"+
 			"```\n"+
-			"**cache Stats:**\n%s",
+			"**cache stats:**\n%s",
 		lastFMUsers,
 		runtime.NumGoroutine(),
 		float64(m.Alloc)/1024/1024,
@@ -60,5 +61,5 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		ctx.LastFM.CacheStats(),
 	)
 
-	_ = res.Reply(e).Content(stats).Edit()
+	reply.Content(stats).Edit()
 }

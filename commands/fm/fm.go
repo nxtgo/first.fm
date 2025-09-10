@@ -32,37 +32,36 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	reply := res.Reply(e)
 
 	if err := reply.Defer(); err != nil {
-		_ = res.ErrorReply(e, constants.ErrorAcknowledgeCommand)
+		_ = res.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
 	user, _, err := opts.GetUser(e, ctx.Database)
 	if err != nil {
-		_ = res.ErrorReply(e, err.Error())
+		_ = res.Error(e, err.Error())
 		return
 	}
 
 	data, err := ctx.LastFM.GetRecentTracks(user, 1)
 	if err != nil {
-		_ = res.ErrorReply(e, constants.ErrorFetchCurrentTrack)
+		_ = res.Error(e, constants.ErrorFetchCurrentTrack)
 		return
 	}
 
 	if len(data.RecentTracks.Track) == 0 {
-		_ = res.ErrorReply(e, constants.ErrorNoTracks)
+		_ = res.Error(e, constants.ErrorNoTracks)
 		return
 	}
 
 	track := data.RecentTracks.Track[0]
 	if track.Attr.Nowplaying != "true" {
-		_ = res.ErrorReply(e, constants.ErrorNotPlaying)
+		_ = res.Error(e, constants.ErrorNotPlaying)
 		return
 	}
 
 	embed := res.QuickEmbed(
 		track.Name,
 		fmt.Sprintf("by **%s**\n-# *at %s*", track.Artist.Text, track.Album.Text),
-		0x00ADD8,
 	)
 	embed.Author = &discord.EmbedAuthor{
 		Name: fmt.Sprintf("%s's current track", user),
@@ -70,8 +69,10 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	}
 	embed.URL = track.URL
 	if len(track.Image) > 0 {
-		embed.Thumbnail = &discord.EmbedResource{URL: track.Image[len(track.Image)-1].Text}
+		embed.Thumbnail = &discord.EmbedResource{
+			URL: track.Image[len(track.Image)-1].Text,
+		}
 	}
 
-	_ = reply.Embed(embed).Send()
+	_ = reply.Embed(embed).Edit()
 }

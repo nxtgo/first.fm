@@ -78,9 +78,9 @@ func main() {
 	}
 
 	if globalCmds {
-		uploadGlobalCommands(client)
+		uploadGlobalCommands(*client)
 	} else {
-		uploadGuildCommands(client)
+		uploadGuildCommands(*client)
 	}
 
 	waitForShutdown()
@@ -104,7 +104,7 @@ func initDatabase(ctx context.Context, path string) (func() error, *db.Queries) 
 	return dbConn.Close, db.New(dbConn)
 }
 
-func initDiscordClient(token string) bot.Client {
+func initDiscordClient(token string) *bot.Client {
 	cacheOptions := dgobot.WithCacheConfigOpts(
 		dgocache.WithCaches(dgocache.FlagMembers),
 	)
@@ -131,7 +131,7 @@ func initDiscordClient(token string) bot.Client {
 }
 
 func uploadGlobalCommands(client bot.Client) {
-	_, err := client.Rest().SetGlobalCommands(client.ApplicationID(), commands.All())
+	_, err := client.Rest.SetGlobalCommands(client.ApplicationID, commands.All())
 	if err != nil {
 		logger.Log.Fatalf("failed registering global commands: %v", err)
 	}
@@ -140,7 +140,7 @@ func uploadGlobalCommands(client bot.Client) {
 
 func uploadGuildCommands(client bot.Client) {
 	guildId := snowflake.GetEnv("GUILD_ID")
-	_, err := client.Rest().SetGuildCommands(client.ApplicationID(), guildId, commands.All())
+	_, err := client.Rest.SetGuildCommands(client.ApplicationID, guildId, commands.All())
 	if err != nil {
 		logger.Log.Fatalf("failed registering global commands: %v", err)
 	}

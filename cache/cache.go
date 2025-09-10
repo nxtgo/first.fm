@@ -10,14 +10,15 @@ import (
 )
 
 type LastFMCache struct {
-	user         *gce.Cache[string, *lastfm.UserInfoResponse]
-	track        *gce.Cache[string, *lastfm.TrackInfoResponse]
-	recentTracks *gce.Cache[string, *lastfm.RecentTracksResponse]
-	plays        *gce.Cache[string, int]
-	guildUsers   *gce.Cache[snowflake.ID, map[snowflake.ID]string]
+	user       *gce.Cache[string, *lastfm.UserInfoResponse]
+	track      *gce.Cache[string, *lastfm.TrackInfoResponse]
+	topArtists *gce.Cache[string, *lastfm.TopArtistsResponse]
+	topAlbums  *gce.Cache[string, *lastfm.TopAlbumsResponse]
+	topTracks  *gce.Cache[string, *lastfm.TopTracksResponse]
+	plays      *gce.Cache[string, int]
+	member     *gce.Cache[snowflake.ID, map[snowflake.ID]string]
 }
 
-// NewLastFMCache creates caches with tuned defaults for a Discord bot.
 func NewLastFMCache() *LastFMCache {
 	commonCleanup := gce.WithCleanupInterval(30 * time.Second)
 	commonShards := gce.WithShardCount(64)
@@ -35,10 +36,22 @@ func NewLastFMCache() *LastFMCache {
 			gce.WithDefaultTTL(30*time.Minute),
 			gce.WithMaxEntries(50_000),
 		),
-		recentTracks: gce.New[string, *lastfm.RecentTracksResponse](
+		topArtists: gce.New[string, *lastfm.TopArtistsResponse](
 			commonShards,
 			commonCleanup,
-			gce.WithDefaultTTL(1*time.Minute),
+			gce.WithDefaultTTL(15*time.Minute),
+			gce.WithMaxEntries(10_000),
+		),
+		topAlbums: gce.New[string, *lastfm.TopAlbumsResponse](
+			commonShards,
+			commonCleanup,
+			gce.WithDefaultTTL(15*time.Minute),
+			gce.WithMaxEntries(10_000),
+		),
+		topTracks: gce.New[string, *lastfm.TopTracksResponse](
+			commonShards,
+			commonCleanup,
+			gce.WithDefaultTTL(15*time.Minute),
 			gce.WithMaxEntries(10_000),
 		),
 		plays: gce.New[string, int](
@@ -47,11 +60,11 @@ func NewLastFMCache() *LastFMCache {
 			gce.WithDefaultTTL(10*time.Minute),
 			gce.WithMaxEntries(100_000),
 		),
-		guildUsers: gce.New[snowflake.ID, map[snowflake.ID]string](
+		member: gce.New[snowflake.ID, map[snowflake.ID]string](
 			commonShards,
 			commonCleanup,
 			gce.WithDefaultTTL(5*time.Minute),
-			gce.WithMaxEntries(100),
+			gce.WithMaxEntries(1000),
 		),
 	}
 }
@@ -59,40 +72,55 @@ func NewLastFMCache() *LastFMCache {
 func (c *LastFMCache) Stats() string {
 	stats := "```\n"
 
-	if c.user != nil {
-		s := c.user.Stats()
-		stats += fmt.Sprintf("user cache       | hits: %6d | misses: %6d | loads: %6d | evictions: %6d | size: %6d\n",
-			s.Hits, s.Misses, s.Loads, s.Evictions, s.CurrentSize)
+	caches := map[string]any{
+		"user cache":   c.user,
+		"track cache":  c.track,
+		"plays cache":  c.plays,
+		"member cache": c.member,
+		"top artists":  c.topArtists,
+		"top albums":   c.topAlbums,
+		"top tracks":   c.topTracks,
 	}
 
-	if c.track != nil {
-		s := c.track.Stats()
-		stats += fmt.Sprintf("track cache      | hits: %6d | misses: %6d | loads: %6d | evictions: %6d | size: %6d\n",
-			s.Hits, s.Misses, s.Loads, s.Evictions, s.CurrentSize)
-	}
+	for name, cacheObj := range caches {
+		if cacheObj == nil {
+			continue
+		}
 
-	if c.recentTracks != nil {
-		s := c.recentTracks.Stats()
-		stats += fmt.Sprintf("recenttracks     | hits: %6d | misses: %6d | loads: %6d | evictions: %6d | size: %6d\n",
-			s.Hits, s.Misses, s.Loads, s.Evictions, s.CurrentSize)
-	}
+		// lol.
+		var s gce.Stats
+		switch cache := cacheObj.(type) {
+		case *gce.Cache[string, any]:
+			s = cache.Stats()
+		case *gce.Cache[string, int]:
+			s = cache.Stats()
+		case *gce.Cache[snowflake.ID, map[snowflake.ID]string]:
+			s = cache.Stats()
+		case *gce.Cache[string, *lastfm.UserInfoResponse]:
+			s = cache.Stats()
+		case *gce.Cache[string, *lastfm.TrackInfoResponse]:
+			s = cache.Stats()
+		case *gce.Cache[string, *lastfm.TopArtistsResponse]:
+			s = cache.Stats()
+		case *gce.Cache[string, *lastfm.TopAlbumsResponse]:
+			s = cache.Stats()
+		case *gce.Cache[string, *lastfm.TopTracksResponse]:
+			s = cache.Stats()
+		default:
+			continue
+		}
 
-	if c.plays != nil {
-		s := c.plays.Stats()
-		stats += fmt.Sprintf("plays cache      | hits: %6d | misses: %6d | loads: %6d | evictions: %6d | size: %6d\n",
-			s.Hits, s.Misses, s.Loads, s.Evictions, s.CurrentSize)
-	}
-
-	if c.guildUsers != nil {
-		s := c.guildUsers.Stats()
-		stats += fmt.Sprintf("guildusers cache | hits: %6d | misses: %6d | loads: %6d | evictions: %6d | size: %6d\n",
-			s.Hits, s.Misses, s.Loads, s.Evictions, s.CurrentSize)
+		stats += fmt.Sprintf(
+			"%-15s | hits: %6d | misses: %6d | loads: %6d | evictions: %6d | size: %6d\n",
+			name, s.Hits, s.Misses, s.Loads, s.Evictions, s.CurrentSize,
+		)
 	}
 
 	stats += "```"
 	return stats
 }
 
+// Close all caches
 func (c *LastFMCache) Close() {
 	if c.user != nil {
 		c.user.Close()
@@ -100,10 +128,19 @@ func (c *LastFMCache) Close() {
 	if c.track != nil {
 		c.track.Close()
 	}
-	if c.recentTracks != nil {
-		c.recentTracks.Close()
+	if c.topArtists != nil {
+		c.topArtists.Close()
+	}
+	if c.topAlbums != nil {
+		c.topAlbums.Close()
+	}
+	if c.topTracks != nil {
+		c.topTracks.Close()
 	}
 	if c.plays != nil {
 		c.plays.Close()
+	}
+	if c.member != nil {
+		c.member.Close()
 	}
 }

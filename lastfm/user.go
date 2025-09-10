@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/snowflake/v2"
 
@@ -23,7 +22,7 @@ func (c *Client) GetUsersByGuild(
 ) (map[snowflake.ID]string, error) {
 	guildID := *e.GuildID()
 
-	if cached, ok := c.cache.GetGuildUsers(guildID); ok {
+	if cached, ok := c.cache.GetMembers(guildID); ok {
 		return cached, nil
 	}
 
@@ -33,9 +32,10 @@ func (c *Client) GetUsersByGuild(
 	}
 
 	memberIDs := make(map[snowflake.ID]struct{})
-	e.Client().Caches().MembersForEach(guildID, func(m discord.Member) {
+	cached := e.Client().Caches.Members(guildID)
+	for m := range cached {
 		memberIDs[m.User.ID] = struct{}{}
-	})
+	}
 
 	users := make(map[snowflake.ID]string)
 	for _, u := range registered {
@@ -45,7 +45,7 @@ func (c *Client) GetUsersByGuild(
 		}
 	}
 
-	c.cache.SetGuildUsers(guildID, users, 0)
+	c.cache.SetMembers(guildID, users, 0)
 
 	return users, nil
 }
@@ -71,12 +71,6 @@ func (c *Client) GetUserInfo(user string) (*lastfm.UserInfoResponse, error) {
 }
 
 func (c *Client) GetRecentTracks(user string, limit int) (*lastfm.RecentTracksResponse, error) {
-	cacheKey := fmt.Sprintf("%s:%d", user, limit)
-
-	if resp, ok := c.cache.GetRecentTracks(cacheKey); ok {
-		return resp, nil
-	}
-
 	params := map[string]string{
 		"user":  user,
 		"limit": fmt.Sprint(limit),
@@ -86,64 +80,54 @@ func (c *Client) GetRecentTracks(user string, limit int) (*lastfm.RecentTracksRe
 		return nil, err
 	}
 
-	c.cache.SetRecentTracks(cacheKey, &resp, 0)
 	return &resp, nil
 }
 
 func (c *Client) GetUserPlays(user, queryType, queryName string, limit int) (int, error) {
-	cacheKey := fmt.Sprintf("%s:%s:%s:%d", user, queryType, queryName, limit)
+	cacheKey := fmt.Sprintf("%s:%s", user, queryName)
 
 	if cached, ok := c.cache.GetPlays(cacheKey); ok {
 		return cached, nil
 	}
 
-	params := map[string]string{
-		"user":  user,
-		"limit": fmt.Sprint(limit),
-	}
-
 	var playCount int
-	var err error
 
 	switch queryType {
 	case "artist":
-		var resp lastfm.TopArtistsResponse
-		err = c.req("user.getTopArtists", params, &resp)
-		if err == nil {
-			for _, a := range resp.TopArtists.Artist {
-				if strings.EqualFold(a.Name, queryName) {
-					fmt.Sscanf(a.Playcount, "%d", &playCount)
-					break
-				}
+		resp, err := c.GetTopArtists(user, limit)
+		if err != nil {
+			return 0, err
+		}
+		for _, a := range resp.TopArtists.Artist {
+			if strings.EqualFold(a.Name, queryName) {
+				fmt.Sscanf(a.Playcount, "%d", &playCount)
+				break
 			}
 		}
 	case "album":
-		var resp lastfm.TopAlbumsResponse
-		err = c.req("user.getTopAlbums", params, &resp)
-		if err == nil {
-			for _, a := range resp.TopAlbums.Album {
-				if strings.EqualFold(a.Name, queryName) {
-					fmt.Sscanf(a.Playcount, "%d", &playCount)
-					break
-				}
+		resp, err := c.GetTopAlbums(user, limit)
+		if err != nil {
+			return 0, err
+		}
+		for _, a := range resp.TopAlbums.Album {
+			if strings.EqualFold(a.Name, queryName) {
+				fmt.Sscanf(a.Playcount, "%d", &playCount)
+				break
 			}
 		}
 	case "track":
-		var resp lastfm.TopTracksResponse
-		err = c.req("user.getTopTracks", params, &resp)
-		if err == nil {
-			for _, t := range resp.TopTracks.Track {
-				if strings.EqualFold(t.Name, queryName) {
-					fmt.Sscanf(t.Playcount, "%d", &playCount)
-					break
-				}
+		resp, err := c.GetTopTracks(user, limit)
+		if err != nil {
+			return 0, err
+		}
+		for _, t := range resp.TopTracks.Track {
+			if strings.EqualFold(t.Name, queryName) {
+				fmt.Sscanf(t.Playcount, "%d", &playCount)
+				break
 			}
 		}
 	default:
 		return 0, fmt.Errorf("unknown query type: %s", queryType)
-	}
-	if err != nil {
-		return 0, err
 	}
 
 	c.cache.SetPlays(cacheKey, playCount, 0)
