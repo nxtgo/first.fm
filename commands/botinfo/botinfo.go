@@ -7,6 +7,7 @@ import (
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+	"go.fm/constants"
 	"go.fm/util/res"
 	"go.fm/util/shared/cmd"
 )
@@ -27,7 +28,7 @@ func (Command) Data() discord.ApplicationCommandCreate {
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	err := res.Reply(e).Defer()
 	if err != nil {
-		_ = res.ErrorReply(e, "error deferring command")
+		_ = res.ErrorReply(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 

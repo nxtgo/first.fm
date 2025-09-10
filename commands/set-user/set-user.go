@@ -4,10 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+	"github.com/nxtgo/zlog"
 
+	"go.fm/constants"
 	"go.fm/db"
 	"go.fm/logger"
 	"go.fm/util/res"
@@ -38,7 +41,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	reply := res.Reply(e)
 
 	if err := reply.Defer(); err != nil {
-		_ = res.ErrorReply(e, "failed to acknowledge command")
+		_ = res.ErrorReply(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
@@ -47,18 +50,18 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	_, err := ctx.LastFM.GetUserInfo(username)
 	if err != nil {
-		_ = res.ErrorReply(e, "that username doesn't exist on last.fm")
+		_ = res.ErrorReply(e, constants.ErrorUserNotFound)
 		return
 	}
 
 	existing, err := ctx.Database.GetUserByUsername(context.Background(), username)
 	if err == nil {
 		if existing.DiscordID != discordID {
-			_ = res.ErrorReply(e, "that last.fm username is already linked by another Discord user")
+			_ = res.ErrorReply(e, constants.ErrorAlreadyLinked)
 			return
 		}
 		if existing.LastfmUsername == username {
-			_ = reply.Content("your last.fm username is already set to **%s**", username).Send()
+			_ = res.ErrorReply(e, fmt.Sprintf(constants.ErrorUsernameAlreadySet, username))
 			return
 		}
 	}
@@ -68,8 +71,8 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			DiscordID:      discordID,
 			LastfmUsername: username,
 		}); dbErr != nil {
-			logger.Log.Errorf("failed to upsert user %s: %v", discordID, dbErr)
-			_ = res.ErrorReply(e, "failed to set your last.fm username")
+			logger.Log.Errorw("failed to upsert user: %v", zlog.F{"gid": e.GuildID().String(), "uid": discordID}, dbErr)
+			_ = res.ErrorReply(e, constants.ErrorSetUsername)
 			return
 		}
 
@@ -79,6 +82,6 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	if err != nil {
 		logger.Log.Errorf("unexpected DB error in /set-user: %v", err)
-		_ = res.ErrorReply(e, "an unexpected error occurred, please try again later")
+		_ = res.ErrorReply(e, constants.ErrorUnexpected)
 	}
 }

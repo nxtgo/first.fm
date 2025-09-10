@@ -6,6 +6,7 @@ import (
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 
+	"go.fm/constants"
 	"go.fm/util/opts"
 	"go.fm/util/res"
 	"go.fm/util/shared/cmd"
@@ -31,7 +32,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	reply := res.Reply(e)
 
 	if err := reply.Defer(); err != nil {
-		_ = res.ErrorReply(e, "failed to acknowledge command")
+		_ = res.ErrorReply(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
@@ -43,18 +44,18 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	data, err := ctx.LastFM.GetRecentTracks(user, 1)
 	if err != nil {
-		_ = res.ErrorReply(e, "failed to fetch last.fm data")
+		_ = res.ErrorReply(e, constants.ErrorFetchCurrentTrack)
 		return
 	}
 
 	if len(data.RecentTracks.Track) == 0 {
-		_ = res.ErrorReply(e, "no tracks found for that user")
+		_ = res.ErrorReply(e, constants.ErrorNoTracks)
 		return
 	}
 
 	track := data.RecentTracks.Track[0]
 	if track.Attr.Nowplaying != "true" {
-		_ = res.ErrorReply(e, "the user isn't listening to anything right now")
+		_ = res.ErrorReply(e, constants.ErrorNotPlaying)
 		return
 	}
 

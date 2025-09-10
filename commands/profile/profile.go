@@ -31,21 +31,22 @@ func (Command) Data() discord.ApplicationCommandCreate {
 }
 
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	err := res.Reply(e).Defer()
-	if err != nil {
-		_ = res.ErrorReply(e, "error deferring command")
+	reply := res.Reply(e)
+
+	if err := reply.Defer(); err != nil {
+		_ = res.ErrorReply(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
 	username, _, err := opts.GetUser(e, ctx.Database)
 	if err != nil {
-		_ = res.ErrorReply(e, "failed to get your last.fm user, use `/set-user`")
+		_ = res.ErrorReply(e, constants.ErrorNotRegistered)
 		return
 	}
 
 	user, err := ctx.LastFM.GetUserInfo(username)
 	if err != nil {
-		_ = res.ErrorReply(e, "couldn't find that user")
+		_ = res.ErrorReply(e, constants.ErrorUserNotFound)
 		return
 	}
 
