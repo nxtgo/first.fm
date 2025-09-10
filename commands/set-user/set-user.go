@@ -45,8 +45,8 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	username := e.SlashCommandInteractionData().String("username")
 	discordID := e.User().ID.String()
 
-	userInfo, err := ctx.LastFM.GetUserInfo(username)
-	if err != nil || userInfo.User.Name == "" {
+	_, err := ctx.LastFM.GetUserInfo(username)
+	if err != nil {
 		_ = res.ErrorReply(e, "that username doesn't exist on last.fm")
 		return
 	}

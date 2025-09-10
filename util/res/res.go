@@ -48,6 +48,25 @@ func (r *ResponseBuilder) Defer() error {
 	return r.e.DeferCreateMessage(r.ephemeral)
 }
 
+// Send a followUp the interaction response
+func (r *ResponseBuilder) FollowUp() error {
+	msg := discord.MessageCreate{
+		Content:         *r.content,
+		Embeds:          r.embeds,
+		AllowedMentions: &discord.AllowedMentions{},
+	}
+	if r.ephemeral {
+		msg.Flags.Add(discord.MessageFlagEphemeral)
+	}
+
+	_, err := r.e.Client().Rest().CreateFollowupMessage(
+		r.e.ApplicationID(),
+		r.e.Token(),
+		msg,
+	)
+	return err
+}
+
 // Send edits the interaction response (after Defer was called)
 func (r *ResponseBuilder) Send() error {
 	_, err := r.e.Client().Rest().UpdateInteractionResponse(
@@ -64,14 +83,6 @@ func (r *ResponseBuilder) Send() error {
 
 // Edit edits the original deferred response
 func (r *ResponseBuilder) Edit() error {
-	builder := discord.NewMessageCreateBuilder()
-	if r.content != nil {
-		builder.SetContent(*r.content)
-	}
-	if len(r.embeds) > 0 {
-		builder.AddEmbeds(r.embeds...)
-	}
-
 	_, err := r.e.Client().Rest().UpdateInteractionResponse(
 		r.e.ApplicationID(),
 		r.e.Token(),

@@ -15,14 +15,14 @@ var UserOption = discord.ApplicationCommandOptionString{
 	Required:    false,
 }
 
-func GetUser(e *events.ApplicationCommandInteractionCreate, q *db.Queries) (string, error) {
+func GetUser(e *events.ApplicationCommandInteractionCreate, q *db.Queries) (string, bool, error) {
 	user, defined := e.SlashCommandInteractionData().OptString("user")
 	if !defined {
 		userId := e.Member().User.ID.String()
 		username, err := q.GetUser(context.Background(), userId)
 
-		return username, err
+		return username, true, err
 	}
 
-	return user, nil
+	return user, false, nil
 }

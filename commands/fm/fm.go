@@ -35,7 +35,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return
 	}
 
-	user, err := opts.GetUser(e, ctx.Database)
+	user, _, err := opts.GetUser(e, ctx.Database)
 	if err != nil {
 		_ = res.ErrorReply(e, err.Error())
 		return

@@ -44,7 +44,7 @@ func (c *Client) GetUserInfo(user string) (*UserInfoResponse, error) {
 	}
 	var resp UserInfoResponse
 	err := c.req("user.getInfo", params, &resp)
-	if err != nil {
+	if err != nil || resp.User.Name == "" {
 		return nil, err
 	}
 
