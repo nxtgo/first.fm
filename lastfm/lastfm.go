@@ -5,14 +5,16 @@ import (
 	"time"
 
 	httpx "github.com/nxtgo/httpx/client"
+	"go.fm/cache"
 )
 
 type Client struct {
 	client *httpx.Client
 	apiKey string
+	cache  *cache.LastFMCache
 }
 
-func New() *Client {
+func New(cache *cache.LastFMCache) *Client {
 	client := httpx.New().
 		BaseURL("https://ws.audioscrobbler.com/2.0/").
 		Timeout(time.Second * 10)
@@ -20,6 +22,7 @@ func New() *Client {
 	return &Client{
 		client: client,
 		apiKey: os.Getenv("LASTFM_API_KEY"),
+		cache:  cache,
 	}
 }
 
@@ -35,4 +38,8 @@ func (c *Client) req(method string, params map[string]string, target any) error 
 	}
 
 	return request.JSON(target)
+}
+
+func (c *Client) CacheStats() string {
+	return c.cache.Stats()
 }

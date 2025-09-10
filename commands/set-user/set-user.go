@@ -1,7 +1,6 @@
 package setuser
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -13,8 +12,8 @@ import (
 	"go.fm/constants"
 	"go.fm/db"
 	"go.fm/logger"
+	"go.fm/types/cmd"
 	"go.fm/util/res"
-	"go.fm/util/shared/cmd"
 )
 
 type Command struct{}
@@ -54,7 +53,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return
 	}
 
-	existing, err := ctx.Database.GetUserByUsername(context.Background(), username)
+	existing, err := ctx.Database.GetUserByUsername(ctx.Context, username)
 	if err == nil {
 		if existing.DiscordID != discordID {
 			_ = res.ErrorReply(e, constants.ErrorAlreadyLinked)
@@ -67,7 +66,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	}
 
 	if errors.Is(err, sql.ErrNoRows) || existing.DiscordID == discordID {
-		if dbErr := ctx.Database.UpsertUser(context.Background(), db.UpsertUserParams{
+		if dbErr := ctx.Database.UpsertUser(ctx.Context, db.UpsertUserParams{
 			DiscordID:      discordID,
 			LastfmUsername: username,
 		}); dbErr != nil {

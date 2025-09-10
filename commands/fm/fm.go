@@ -7,9 +7,9 @@ import (
 	"github.com/disgoorg/disgo/events"
 
 	"go.fm/constants"
+	"go.fm/types/cmd"
 	"go.fm/util/opts"
 	"go.fm/util/res"
-	"go.fm/util/shared/cmd"
 )
 
 type Command struct{}

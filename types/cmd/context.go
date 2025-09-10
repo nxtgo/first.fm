@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"go.fm/cache"
 	"go.fm/db"
 	"go.fm/lastfm"
 )
@@ -11,7 +12,7 @@ import (
 type CommandContext struct {
 	LastFM   *lastfm.Client
 	Database *db.Queries
-	// QueryContext context.Context
-	Context context.Context
-	Start   time.Time
+	Context  context.Context
+	Start    time.Time
+	Cache    *cache.LastFMCache
 }

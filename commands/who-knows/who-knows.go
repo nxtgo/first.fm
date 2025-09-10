@@ -1,7 +1,6 @@
 package whoknows
 
 import (
-	"context"
 	"fmt"
 	"sort"
 
@@ -9,9 +8,8 @@ import (
 	"github.com/disgoorg/disgo/events"
 
 	"go.fm/constants"
-	"go.fm/lastfm"
+	"go.fm/types/cmd"
 	"go.fm/util/res"
-	"go.fm/util/shared/cmd"
 )
 
 type Command struct{}
@@ -60,11 +58,12 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return
 	}
 
+	var img string
 	tType := e.SlashCommandInteractionData().String("type")
 	name, defined := e.SlashCommandInteractionData().OptString("name")
 	if !defined {
 		currentUser, err := ctx.Database.GetUser(
-			context.Background(),
+			ctx.Context,
 			e.Member().User.ID.String(),
 		)
 		if err != nil {
@@ -84,6 +83,8 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			return
 		}
 
+		img = current.Image[len(current.Image)-1].Text
+
 		switch tType {
 		case "artist":
 			name = current.Artist.Text
@@ -94,7 +95,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		}
 	}
 
-	users, err := lastfm.GetUsersByGuild(context.Background(), e, ctx.Database)
+	users, err := ctx.LastFM.GetUsersByGuild(ctx.Context, e, ctx.Database)
 	if err != nil {
 		_ = res.ErrorReply(e, constants.ErrorUnexpected)
 		return
@@ -118,11 +119,12 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		}
 
 		results = append(results, result{
-			UserID:    id,
+			UserID:    id.String(),
 			Username:  username,
 			PlayCount: count,
 		})
 	}
+
 	if len(results) == 0 {
 		_ = res.ErrorReply(e, constants.ErrorNoListeners)
 		return
@@ -132,14 +134,24 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return results[i].PlayCount > results[j].PlayCount
 	})
 
-	msg := fmt.Sprintf("### who knows %s `%s` best:\n", tType, name)
+	list := ""
 
 	for i, r := range results {
 		if i >= 10 {
 			break
 		}
-		msg += fmt.Sprintf("%d. %s (<@%s>) — %d plays\n", i+1, r.Username, r.UserID, r.PlayCount)
+		list += fmt.Sprintf("%d. [%s](<https://www.last.fm/user/%s>) (<@%s>) — %d plays\n", i+1, r.Username, r.Username, r.UserID, r.PlayCount)
 	}
 
-	_ = reply.Content(msg).Send()
+	embed := res.QuickEmbed(
+		name,
+		list,
+		0x00ADD8,
+	)
+	// todo: source url
+
+	embed.Author = &discord.EmbedAuthor{Name: "who listened more to..."}
+	embed.Thumbnail = &discord.EmbedResource{URL: img}
+
+	_ = reply.Embed(embed).Edit()
 }

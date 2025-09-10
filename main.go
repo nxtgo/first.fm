@@ -17,11 +17,12 @@ import (
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/nxtgo/env"
 
+	"go.fm/cache"
 	"go.fm/commands"
 	"go.fm/db"
 	"go.fm/lastfm"
 	"go.fm/logger"
-	"go.fm/util/shared/cmd"
+	"go.fm/types/cmd"
 
 	_ "embed"
 
@@ -54,7 +55,9 @@ func main() {
 		logger.Log.Fatal("missing DISCORD_TOKEN environment variable")
 	}
 
-	lfm := lastfm.New()
+	lfmCache := cache.NewLastFMCache()
+	defer lfmCache.Close()
+	lfm := lastfm.New(lfmCache)
 
 	closeConnection, database := initDatabase(ctx, dbPath)
 	defer closeConnection()
@@ -62,6 +65,8 @@ func main() {
 	cmdCtx := cmd.CommandContext{
 		LastFM:   lfm,
 		Database: database,
+		Cache:    lfmCache,
+		Context:  ctx,
 	}
 	commands.InitDependencies(cmdCtx)
 

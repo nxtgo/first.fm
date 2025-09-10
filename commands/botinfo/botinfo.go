@@ -8,8 +8,8 @@ import (
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"go.fm/constants"
+	"go.fm/types/cmd"
 	"go.fm/util/res"
-	"go.fm/util/shared/cmd"
 )
 
 type Command struct{}
@@ -41,18 +41,23 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	}
 
 	stats := fmt.Sprintf(
-		"* registered last.fm users: %d\n"+
-			"* goroutines: %d\n"+
-			"* alloc: %.2f MB\n"+
-			"* total alloc: %.2f MB\n"+
-			"* sys: %.2f MB\n"+
-			"* uptime: %s\n",
+		"```\n"+
+			"registered last.fm users: %d\n"+
+			"goroutines: %d\n"+
+			"memory Usage:\n"+
+			"  - alloc: %.2f MB\n"+
+			"  - total: %.2f MB\n"+
+			"  - sys: %.2f MB\n"+
+			"uptime: %s\n"+
+			"```\n"+
+			"**cache Stats:**\n%s",
 		lastFMUsers,
 		runtime.NumGoroutine(),
 		float64(m.Alloc)/1024/1024,
 		float64(m.TotalAlloc)/1024/1024,
 		float64(m.Sys)/1024/1024,
 		time.Since(ctx.Start).Truncate(time.Second),
+		ctx.LastFM.CacheStats(),
 	)
 
 	_ = res.Reply(e).Content(stats).Edit()
