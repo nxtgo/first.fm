@@ -1,4 +1,4 @@
-package res
+package cmd
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type ResponseBuilder struct {
 }
 
 // Reply starts a new ResponseBuilder for a deferred interaction
-func Reply(e *events.ApplicationCommandInteractionCreate) *ResponseBuilder {
+func (ctx *CommandContext) Reply(e *events.ApplicationCommandInteractionCreate) *ResponseBuilder {
 	return &ResponseBuilder{
 		e: e,
 	}
@@ -111,7 +111,7 @@ func (r *ResponseBuilder) Edit() error {
 }
 
 // QuickEmbed helper
-func QuickEmbed(title, description string) discord.Embed {
+func (_ *CommandContext) QuickEmbed(title, description string) discord.Embed {
 	return discord.NewEmbedBuilder().
 		SetTitle(title).
 		SetDescription(description).
@@ -120,11 +120,11 @@ func QuickEmbed(title, description string) discord.Embed {
 }
 
 // ErrorReply sends an ephemeral error embed with a red color
-func Error(e *events.ApplicationCommandInteractionCreate, message string) error {
-	embed := QuickEmbed("❌ error", message)
+func (c *CommandContext) Error(e *events.ApplicationCommandInteractionCreate, message string) error {
+	embed := c.QuickEmbed("❌ error", message)
 	embed.Color = 0xE74C3C
 
-	return Reply(e).
+	return c.Reply(e).
 		Embed(embed).
 		Send()
 }

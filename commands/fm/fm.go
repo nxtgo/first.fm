@@ -8,8 +8,6 @@ import (
 
 	"go.fm/constants"
 	"go.fm/types/cmd"
-	"go.fm/util/opts"
-	"go.fm/util/res"
 )
 
 type Command struct{}
@@ -23,43 +21,43 @@ func (Command) Data() discord.ApplicationCommandCreate {
 			discord.ApplicationIntegrationTypeUserInstall,
 		},
 		Options: []discord.ApplicationCommandOption{
-			opts.UserOption,
+			cmd.UserOption,
 		},
 	}
 }
 
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	reply := res.Reply(e)
+	reply := ctx.Reply(e)
 
 	if err := reply.Defer(); err != nil {
-		_ = res.Error(e, constants.ErrorAcknowledgeCommand)
+		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
-	user, _, err := opts.GetUser(e, ctx.Database)
+	user, err := ctx.GetUser(e)
 	if err != nil {
-		_ = res.Error(e, err.Error())
+		_ = ctx.Error(e, err.Error())
 		return
 	}
 
 	data, err := ctx.LastFM.GetRecentTracks(user, 1)
 	if err != nil {
-		_ = res.Error(e, constants.ErrorFetchCurrentTrack)
+		_ = ctx.Error(e, constants.ErrorFetchCurrentTrack)
 		return
 	}
 
 	if len(data.RecentTracks.Track) == 0 {
-		_ = res.Error(e, constants.ErrorNoTracks)
+		_ = ctx.Error(e, constants.ErrorNoTracks)
 		return
 	}
 
 	track := data.RecentTracks.Track[0]
 	if track.Attr.Nowplaying != "true" {
-		_ = res.Error(e, constants.ErrorNotPlaying)
+		_ = ctx.Error(e, constants.ErrorNotPlaying)
 		return
 	}
 
-	embed := res.QuickEmbed(
+	embed := ctx.QuickEmbed(
 		track.Name,
 		fmt.Sprintf("by **%s**\n-# *at %s*", track.Artist.Text, track.Album.Text),
 	)

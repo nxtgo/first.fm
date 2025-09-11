@@ -11,7 +11,6 @@ import (
 	"github.com/disgoorg/snowflake/v2"
 
 	"go.fm/db"
-	"go.fm/logger"
 	"go.fm/types/lastfm"
 )
 
@@ -52,7 +51,6 @@ func (c *Client) GetUsersByGuild(
 
 func (c *Client) GetUserInfo(user string) (*lastfm.UserInfoResponse, error) {
 	if cached, ok := c.cache.GetUser(user); ok {
-		logger.Log.Debug("using cached user")
 		return cached, nil
 	}
 

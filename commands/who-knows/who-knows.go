@@ -9,7 +9,6 @@ import (
 
 	"go.fm/constants"
 	"go.fm/types/cmd"
-	"go.fm/util/res"
 )
 
 type Command struct{}
@@ -42,10 +41,10 @@ func (Command) Data() discord.ApplicationCommandCreate {
 }
 
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	reply := res.Reply(e)
+	reply := ctx.Reply(e)
 
 	if err := reply.Defer(); err != nil {
-		_ = res.Error(e, constants.ErrorAcknowledgeCommand)
+		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
@@ -56,13 +55,13 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	if !defined {
 		currentUser, err := ctx.Database.GetUser(ctx.Context, e.Member().User.ID.String())
 		if err != nil {
-			_ = res.Error(e, constants.ErrorGetUser)
+			_ = ctx.Error(e, constants.ErrorGetUser)
 			return
 		}
 
 		tracks, err := ctx.LastFM.GetRecentTracks(currentUser, 1)
 		if err != nil || len(tracks.RecentTracks.Track) == 0 || tracks.RecentTracks.Track[0].Attr.Nowplaying != "true" {
-			_ = res.Error(e, constants.ErrorFetchCurrentTrack)
+			_ = ctx.Error(e, constants.ErrorFetchCurrentTrack)
 			return
 		}
 
@@ -81,7 +80,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	users, err := ctx.LastFM.GetUsersByGuild(ctx.Context, e, ctx.Database)
 	if err != nil {
-		_ = res.Error(e, constants.ErrorUnexpected)
+		_ = ctx.Error(e, constants.ErrorUnexpected)
 		return
 	}
 
@@ -106,7 +105,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	}
 
 	if len(results) == 0 {
-		_ = res.Error(e, constants.ErrorNoListeners)
+		_ = ctx.Error(e, constants.ErrorNoListeners)
 		return
 	}
 
@@ -122,7 +121,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		list += fmt.Sprintf("%d. [%s](<https://www.last.fm/user/%s>) (<@%s>) — %d plays\n", i+1, r.Username, r.Username, r.UserID, r.PlayCount)
 	}
 
-	embed := res.QuickEmbed(name, list)
+	embed := ctx.QuickEmbed(name, list)
 	embed.Author = &discord.EmbedAuthor{Name: "who listened more to..."}
 	embed.Thumbnail = &discord.EmbedResource{URL: img}
 

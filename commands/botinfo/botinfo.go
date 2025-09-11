@@ -9,7 +9,6 @@ import (
 	"github.com/disgoorg/disgo/events"
 	"go.fm/constants"
 	"go.fm/types/cmd"
-	"go.fm/util/res"
 )
 
 type Command struct{}
@@ -26,10 +25,10 @@ func (Command) Data() discord.ApplicationCommandCreate {
 }
 
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	reply := res.Reply(e)
+	reply := ctx.Reply(e)
 
 	if err := reply.Defer(); err != nil {
-		_ = res.Error(e, constants.ErrorAcknowledgeCommand)
+		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 

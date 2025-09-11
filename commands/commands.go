@@ -12,6 +12,7 @@ import (
 	"go.fm/commands/profile"
 	"go.fm/commands/set-user"
 	"go.fm/commands/who-knows"
+
 	"go.fm/types/cmd"
 )
 
