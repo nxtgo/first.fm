@@ -2,7 +2,9 @@ package botinfo
 
 import (
 	"fmt"
+	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/disgoorg/disgo/discord"
@@ -40,6 +42,8 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		lastFMUsers = 0
 	}
 
+	branch, commit, message := getGitInfo()
+
 	stats := fmt.Sprintf(
 		"```\n"+
 			"registered last.fm users: %d\n"+
@@ -49,6 +53,10 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"  - total: %.2f MB\n"+
 			"  - sys: %.2f MB\n"+
 			"uptime: %s\n"+
+			"git:\n"+
+			"  - branch: %s\n"+
+			"  - commit: %s\n"+
+			"  - message: %s\n"+
 			"```\n"+
 			"**cache stats:**\n%s",
 		lastFMUsers,
@@ -57,8 +65,26 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		float64(m.TotalAlloc)/1024/1024,
 		float64(m.Sys)/1024/1024,
 		time.Since(ctx.Start).Truncate(time.Second),
+		branch,
+		commit,
+		message,
 		ctx.LastFM.CacheStats(),
 	)
 
 	reply.Content(stats).Edit()
+}
+
+func getGitInfo() (branch, commit, message string) {
+	branch = runGitCommand("rev-parse", "--abbrev-ref", "HEAD")
+	commit = runGitCommand("rev-parse", "--short", "HEAD")
+	message = runGitCommand("log", "-1", "--pretty=%B")
+	return
+}
+
+func runGitCommand(args ...string) string {
+	out, err := exec.Command("git", args...).Output()
+	if err != nil {
+		return "unknown"
+	}
+	return strings.TrimSpace(string(out))
 }
