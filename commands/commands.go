@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"time"
 
 	"github.com/disgoorg/disgo/bot"
@@ -13,7 +12,8 @@ import (
 	"go.fm/commands/profile"
 	"go.fm/commands/set-user"
 	"go.fm/commands/who-knows"
-	"go.fm/util/shared/cmd"
+
+	"go.fm/types/cmd"
 )
 
 var sharedCtx cmd.CommandContext
@@ -49,7 +49,6 @@ func All() []discord.ApplicationCommandCreate {
 
 func InitDependencies(ctx cmd.CommandContext) {
 	ctx.Start = time.Now()
-	ctx.Context = context.Background()
 	sharedCtx = ctx
 }
 

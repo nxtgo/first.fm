@@ -1,7 +1,6 @@
 package whoknows
 
 import (
-	"context"
 	"fmt"
 	"sort"
 
@@ -9,9 +8,7 @@ import (
 	"github.com/disgoorg/disgo/events"
 
 	"go.fm/constants"
-	"go.fm/lastfm"
-	"go.fm/util/res"
-	"go.fm/util/shared/cmd"
+	"go.fm/types/cmd"
 )
 
 type Command struct{}
@@ -28,18 +25,9 @@ func (Command) Data() discord.ApplicationCommandCreate {
 				Name:        "type",
 				Description: "artist, track or album",
 				Choices: []discord.ApplicationCommandOptionChoiceString{
-					{
-						Name:  "artist",
-						Value: "artist",
-					},
-					{
-						Name:  "track",
-						Value: "track",
-					},
-					{
-						Name:  "album",
-						Value: "album",
-					},
+					{Name: "artist", Value: "artist"},
+					{Name: "track", Value: "track"},
+					{Name: "album", Value: "album"},
 				},
 				Required: true,
 			},
@@ -53,36 +41,32 @@ func (Command) Data() discord.ApplicationCommandCreate {
 }
 
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	reply := res.Reply(e)
+	reply := ctx.Reply(e)
 
 	if err := reply.Defer(); err != nil {
-		_ = res.ErrorReply(e, constants.ErrorAcknowledgeCommand)
+		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
+	var img string
 	tType := e.SlashCommandInteractionData().String("type")
 	name, defined := e.SlashCommandInteractionData().OptString("name")
+
 	if !defined {
-		currentUser, err := ctx.Database.GetUser(
-			context.Background(),
-			e.Member().User.ID.String(),
-		)
+		currentUser, err := ctx.Database.GetUser(ctx.Context, e.Member().User.ID.String())
 		if err != nil {
-			_ = res.ErrorReply(e, constants.ErrorGetUser)
+			_ = ctx.Error(e, constants.ErrorGetUser)
 			return
 		}
 
 		tracks, err := ctx.LastFM.GetRecentTracks(currentUser, 1)
-		current := tracks.RecentTracks.Track[0]
-		if err != nil || current.Attr.Nowplaying == "false" {
-			_ = res.ErrorReply(e, constants.ErrorFetchCurrentTrack)
+		if err != nil || len(tracks.RecentTracks.Track) == 0 || tracks.RecentTracks.Track[0].Attr.Nowplaying != "true" {
+			_ = ctx.Error(e, constants.ErrorFetchCurrentTrack)
 			return
 		}
 
-		if current.Attr.Nowplaying != "true" {
-			_ = res.ErrorReply(e, constants.ErrorNotPlaying)
-			return
-		}
+		current := tracks.RecentTracks.Track[0]
+		img = current.Image[len(current.Image)-1].Text
 
 		switch tType {
 		case "artist":
@@ -94,9 +78,9 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		}
 	}
 
-	users, err := lastfm.GetUsersByGuild(context.Background(), e, ctx.Database)
+	users, err := ctx.LastFM.GetUsersByGuild(ctx.Context, e, ctx.Database)
 	if err != nil {
-		_ = res.ErrorReply(e, constants.ErrorUnexpected)
+		_ = ctx.Error(e, constants.ErrorUnexpected)
 		return
 	}
 
@@ -107,24 +91,21 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	}
 
 	results := make([]result, 0)
-
 	for id, username := range users {
 		count, err := ctx.LastFM.GetUserPlays(username, tType, name, 1000)
-		if err != nil {
-			continue
-		}
-		if count == 0 {
+		if err != nil || count == 0 {
 			continue
 		}
 
 		results = append(results, result{
-			UserID:    id,
+			UserID:    id.String(),
 			Username:  username,
 			PlayCount: count,
 		})
 	}
+
 	if len(results) == 0 {
-		_ = res.ErrorReply(e, constants.ErrorNoListeners)
+		_ = ctx.Error(e, constants.ErrorNoListeners)
 		return
 	}
 
@@ -132,14 +113,17 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return results[i].PlayCount > results[j].PlayCount
 	})
 
-	msg := fmt.Sprintf("### who knows %s `%s` best:\n", tType, name)
-
+	list := ""
 	for i, r := range results {
 		if i >= 10 {
 			break
 		}
-		msg += fmt.Sprintf("%d. %s (<@%s>) — %d plays\n", i+1, r.Username, r.UserID, r.PlayCount)
+		list += fmt.Sprintf("%d. [%s](<https://www.last.fm/user/%s>) (<@%s>) — %d plays\n", i+1, r.Username, r.Username, r.UserID, r.PlayCount)
 	}
 
-	_ = reply.Content(msg).Send()
+	embed := ctx.QuickEmbed(name, list)
+	embed.Author = &discord.EmbedAuthor{Name: "who listened more to..."}
+	embed.Thumbnail = &discord.EmbedResource{URL: img}
+
+	_ = reply.Embed(embed).Edit()
 }

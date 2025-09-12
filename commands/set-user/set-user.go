@@ -1,7 +1,6 @@
 package setuser
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -13,8 +12,7 @@ import (
 	"go.fm/constants"
 	"go.fm/db"
 	"go.fm/logger"
-	"go.fm/util/res"
-	"go.fm/util/shared/cmd"
+	"go.fm/types/cmd"
 )
 
 type Command struct{}
@@ -38,10 +36,10 @@ func (Command) Data() discord.ApplicationCommandCreate {
 }
 
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	reply := res.Reply(e)
+	reply := ctx.Reply(e)
 
 	if err := reply.Defer(); err != nil {
-		_ = res.ErrorReply(e, constants.ErrorAcknowledgeCommand)
+		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
@@ -50,38 +48,32 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	_, err := ctx.LastFM.GetUserInfo(username)
 	if err != nil {
-		_ = res.ErrorReply(e, constants.ErrorUserNotFound)
+		_ = ctx.Error(e, constants.ErrorUserNotFound)
 		return
 	}
 
-	existing, err := ctx.Database.GetUserByUsername(context.Background(), username)
+	existing, err := ctx.Database.GetUserByUsername(ctx.Context, username)
 	if err == nil {
 		if existing.DiscordID != discordID {
-			_ = res.ErrorReply(e, constants.ErrorAlreadyLinked)
+			_ = ctx.Error(e, constants.ErrorAlreadyLinked)
 			return
 		}
 		if existing.LastfmUsername == username {
-			_ = res.ErrorReply(e, fmt.Sprintf(constants.ErrorUsernameAlreadySet, username))
+			_ = ctx.Error(e, fmt.Sprintf(constants.ErrorUsernameAlreadySet, username))
 			return
 		}
 	}
 
 	if errors.Is(err, sql.ErrNoRows) || existing.DiscordID == discordID {
-		if dbErr := ctx.Database.UpsertUser(context.Background(), db.UpsertUserParams{
+		if dbErr := ctx.Database.UpsertUser(ctx.Context, db.UpsertUserParams{
 			DiscordID:      discordID,
 			LastfmUsername: username,
 		}); dbErr != nil {
-			logger.Log.Errorw("failed to upsert user: %v", zlog.F{"gid": e.GuildID().String(), "uid": discordID}, dbErr)
-			_ = res.ErrorReply(e, constants.ErrorSetUsername)
+			logger.Log.Errorw("failed to upsert user", zlog.F{"gid": e.GuildID().String(), "uid": discordID}, dbErr)
+			_ = ctx.Error(e, constants.ErrorSetUsername)
 			return
 		}
 
-		_ = reply.Content("your last.fm username has been set to **%s**", username).Send()
-		return
-	}
-
-	if err != nil {
-		logger.Log.Errorf("unexpected DB error in /set-user: %v", err)
-		_ = res.ErrorReply(e, constants.ErrorUnexpected)
+		reply.Content("your last.fm username has been set to **%s**", username).Edit()
 	}
 }

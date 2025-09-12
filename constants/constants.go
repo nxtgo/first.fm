@@ -1,10 +1,6 @@
 package constants
 
 var (
-	EmojiWondering = "<:gopherwondering:1415119908001288192>"
-)
-
-var (
 	ErrorAcknowledgeCommand = "failed to acknowledge command"
 	ErrorNotRegistered      = "you didn't set your last.fm username, use `/set-user`"
 	ErrorUserNotFound       = "couldn't find that user in last.fm"

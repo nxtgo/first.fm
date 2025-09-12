@@ -1,4 +1,4 @@
-package res
+package cmd
 
 import (
 	"fmt"
@@ -9,14 +9,16 @@ import (
 
 // ResponseBuilder lets you fluently build a reply
 type ResponseBuilder struct {
-	e         *events.ApplicationCommandInteractionCreate
-	content   *string
-	embeds    []discord.Embed
-	ephemeral bool
+	e          *events.ApplicationCommandInteractionCreate
+	content    *string
+	embeds     []discord.Embed
+	components []discord.LayoutComponent
+	flags      discord.MessageFlags
+	ephemeral  bool
 }
 
 // Reply starts a new ResponseBuilder for a deferred interaction
-func Reply(e *events.ApplicationCommandInteractionCreate) *ResponseBuilder {
+func (ctx *CommandContext) Reply(e *events.ApplicationCommandInteractionCreate) *ResponseBuilder {
 	return &ResponseBuilder{
 		e: e,
 	}
@@ -31,9 +33,20 @@ func (r *ResponseBuilder) Content(msg string, a ...any) *ResponseBuilder {
 	return r
 }
 
+func (r *ResponseBuilder) Flags(flags discord.MessageFlags) *ResponseBuilder {
+	r.flags = flags
+	return r
+}
+
 // Embed adds an embed
 func (r *ResponseBuilder) Embed(embed discord.Embed) *ResponseBuilder {
 	r.embeds = append(r.embeds, embed)
+	return r
+}
+
+// Component adds a component
+func (r *ResponseBuilder) Component(component discord.LayoutComponent) *ResponseBuilder {
+	r.components = append(r.components, component)
 	return r
 }
 
@@ -59,7 +72,7 @@ func (r *ResponseBuilder) FollowUp() error {
 		msg.Flags.Add(discord.MessageFlagEphemeral)
 	}
 
-	_, err := r.e.Client().Rest().CreateFollowupMessage(
+	_, err := r.e.Client().Rest.CreateFollowupMessage(
 		r.e.ApplicationID(),
 		r.e.Token(),
 		msg,
@@ -69,13 +82,14 @@ func (r *ResponseBuilder) FollowUp() error {
 
 // Send edits the interaction response (after Defer was called)
 func (r *ResponseBuilder) Send() error {
-	_, err := r.e.Client().Rest().UpdateInteractionResponse(
+	_, err := r.e.Client().Rest.UpdateInteractionResponse(
 		r.e.ApplicationID(),
 		r.e.Token(),
 		discord.MessageUpdate{
-			Content:         r.content,
-			Embeds:          &r.embeds,
-			AllowedMentions: &discord.AllowedMentions{},
+			Components: &r.components,
+			Content:    r.content,
+			Embeds:     &r.embeds,
+			Flags:      &r.flags,
 		},
 	)
 	return err
@@ -83,31 +97,34 @@ func (r *ResponseBuilder) Send() error {
 
 // Edit edits the original deferred response
 func (r *ResponseBuilder) Edit() error {
-	_, err := r.e.Client().Rest().UpdateInteractionResponse(
+	_, err := r.e.Client().Rest.UpdateInteractionResponse(
 		r.e.ApplicationID(),
 		r.e.Token(),
 		discord.MessageUpdate{
-			Content:         r.content,
-			Embeds:          &r.embeds,
-			AllowedMentions: &discord.AllowedMentions{},
+			Components: &r.components,
+			Flags:      &r.flags,
+			Content:    r.content,
+			Embeds:     &r.embeds,
 		},
 	)
 	return err
 }
 
 // QuickEmbed helper
-func QuickEmbed(title, description string, color int) discord.Embed {
+func (_ *CommandContext) QuickEmbed(title, description string) discord.Embed {
 	return discord.NewEmbedBuilder().
 		SetTitle(title).
 		SetDescription(description).
-		SetColor(color).
+		SetColor(0x00ADD8).
 		Build()
 }
 
 // ErrorReply sends an ephemeral error embed with a red color
-func ErrorReply(e *events.ApplicationCommandInteractionCreate, message string) error {
-	embed := QuickEmbed("❌ error", message, 0xE74C3C)
-	return Reply(e).
+func (c *CommandContext) Error(e *events.ApplicationCommandInteractionCreate, message string) error {
+	embed := c.QuickEmbed("❌ error", message)
+	embed.Color = 0xE74C3C
+
+	return c.Reply(e).
 		Embed(embed).
 		Send()
 }
