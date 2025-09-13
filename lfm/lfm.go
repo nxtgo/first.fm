@@ -14,7 +14,7 @@ import (
 	"fmt"
 
 	httpx "github.com/nxtgo/httpx/client"
-	"go.fm/cache/v2"
+	"go.fm/cache"
 )
 
 const (
@@ -34,7 +34,10 @@ type LastFMApi struct {
 	apiKey string
 	cache  *cache.Cache
 
-	User *userApi
+	User   *userApi
+	Album  *albumApi
+	Artist *artistApi
+	Track  *trackApi
 }
 
 func New(key string, c *cache.Cache) *LastFMApi {
@@ -58,6 +61,9 @@ func New(key string, c *cache.Cache) *LastFMApi {
 	}
 
 	api.User = &userApi{api: api}
+	api.Album = &albumApi{api: api}
+	api.Artist = &artistApi{api: api}
+	api.Track = &trackApi{api: api}
 
 	return api
 }

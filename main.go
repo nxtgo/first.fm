@@ -16,10 +16,10 @@ import (
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/nxtgo/env"
 
-	"go.fm/cache/v2"
+	"go.fm/cache"
 	"go.fm/commands"
 	"go.fm/db"
-	"go.fm/lastfm/v2"
+	"go.fm/lfm"
 	"go.fm/logger"
 	"go.fm/types/cmd"
 
@@ -105,7 +105,7 @@ func initDatabase(ctx context.Context, path string) (func() error, *db.Queries) 
 
 func initDiscordClient(token string) *bot.Client {
 	cacheOptions := bot.WithCacheConfigOpts(
-		dgocache.WithCaches(dgocache.FlagMembers),
+		dgocache.WithCaches(dgocache.FlagMembers, dgocache.FlagGuilds),
 	)
 
 	options := bot.WithGatewayConfigOpts(

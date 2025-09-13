@@ -9,9 +9,9 @@ import (
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/snowflake/v2"
 
-	"go.fm/cache/v2"
+	"go.fm/cache"
 	"go.fm/db"
-	lfm "go.fm/lastfm/v2"
+	"go.fm/lfm"
 )
 
 var UserOption = discord.ApplicationCommandOptionString{

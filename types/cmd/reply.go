@@ -86,10 +86,11 @@ func (r *ResponseBuilder) Send() error {
 		r.e.ApplicationID(),
 		r.e.Token(),
 		discord.MessageUpdate{
-			Components: &r.components,
-			Content:    r.content,
-			Embeds:     &r.embeds,
-			Flags:      &r.flags,
+			Components:      &r.components,
+			Content:         r.content,
+			Embeds:          &r.embeds,
+			Flags:           &r.flags,
+			AllowedMentions: &discord.AllowedMentions{},
 		},
 	)
 	return err
@@ -101,10 +102,11 @@ func (r *ResponseBuilder) Edit() error {
 		r.e.ApplicationID(),
 		r.e.Token(),
 		discord.MessageUpdate{
-			Components: &r.components,
-			Flags:      &r.flags,
-			Content:    r.content,
-			Embeds:     &r.embeds,
+			Components:      &r.components,
+			Flags:           &r.flags,
+			Content:         r.content,
+			Embeds:          &r.embeds,
+			AllowedMentions: &discord.AllowedMentions{},
 		},
 	)
 	return err

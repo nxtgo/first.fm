@@ -3,12 +3,11 @@ package lfm
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/snowflake/v2"
 	"go.fm/db"
-	types "go.fm/lastfm/v2/types"
+	"go.fm/lfm/types"
 )
 
 type userApi struct {
@@ -19,53 +18,64 @@ func (u *userApi) GetPlays(args P) (int, error) {
 	username := args["user"].(string)
 	queryType := args["type"].(string)
 	queryName := args["name"].(string)
-	limit, _ := args["limit"].(int)
-	if limit == 0 {
-		limit = 10
-	}
 
 	cacheKey := fmt.Sprintf("%s:%s", username, queryName)
-
 	if cached, ok := u.api.cache.Plays.Get(cacheKey); ok {
 		return cached, nil
 	}
 
 	var playCount int
+	var err error
 
 	switch queryType {
 	case "artist":
-		resp, err := u.GetTopArtists(P{"user": username, "limit": limit})
+		var artist *types.ArtistGetInfo
+		if username != "" {
+			artist, err = u.api.Artist.GetInfo(P{"artist": queryName, "username": username})
+		} else {
+			artist, err = u.api.Artist.GetInfo(P{"artist": queryName})
+		}
 		if err != nil {
 			return 0, err
 		}
-		for _, a := range resp.Artists {
-			if strings.EqualFold(a.Name, queryName) {
-				fmt.Sscanf(a.PlayCount, "%d", &playCount)
-				break
-			}
+		if username != "" {
+			playCount = artist.Stats.UserPlayCount
+		} else {
+			fmt.Sscanf(fmt.Sprint(artist.Stats.PlayCount), "%d", &playCount)
 		}
+
 	case "album":
-		resp, err := u.GetTopAlbums(P{"user": username, "limit": limit})
+		var album *types.AlbumGetInfo
+		if username != "" {
+			album, err = u.api.Album.GetInfo(P{"artist": args["artist"], "album": queryName, "username": username})
+		} else {
+			album, err = u.api.Album.GetInfo(P{"artist": args["artist"], "album": queryName})
+		}
 		if err != nil {
 			return 0, err
 		}
-		for _, a := range resp.Albums {
-			if strings.EqualFold(a.Name, queryName) {
-				fmt.Sscanf(a.PlayCount, "%d", &playCount)
-				break
-			}
+		if username != "" {
+			playCount = album.UserPlayCount
+		} else {
+			fmt.Sscanf(fmt.Sprint(album.PlayCount), "%d", &playCount)
 		}
+
 	case "track":
-		resp, err := u.GetTopTracks(P{"user": username, "limit": limit})
+		var track *types.TrackGetInfo
+		if username != "" {
+			track, err = u.api.Track.GetInfo(P{"artist": args["artist"], "track": queryName, "username": username})
+		} else {
+			track, err = u.api.Track.GetInfo(P{"artist": args["artist"], "track": queryName})
+		}
 		if err != nil {
 			return 0, err
 		}
-		for _, t := range resp.Tracks {
-			if strings.EqualFold(t.Name, queryName) {
-				fmt.Sscanf(t.PlayCount, "%d", &playCount)
-				break
-			}
+		if username != "" {
+			playCount = track.UserPlayCount
+		} else {
+			fmt.Sscanf(fmt.Sprint(track.PlayCount), "%d", &playCount)
 		}
+
 	default:
 		return 0, fmt.Errorf("unknown query type: %s", queryType)
 	}
@@ -81,7 +91,7 @@ func (u *userApi) GetUsersByGuild(
 ) (map[snowflake.ID]string, error) {
 	guildID := *e.GuildID()
 
-	if cached, ok := u.api.cache.Member.Get(guildID); ok {
+	if cached, ok := u.api.cache.Members.Get(guildID); ok {
 		return cached, nil
 	}
 
@@ -104,7 +114,7 @@ func (u *userApi) GetUsersByGuild(
 		}
 	}
 
-	u.api.cache.Member.Set(guildID, users, 0)
+	u.api.cache.Members.Set(guildID, users, 0)
 
 	return users, nil
 }

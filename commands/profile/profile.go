@@ -8,12 +8,25 @@ import (
 	"github.com/disgoorg/disgo/events"
 
 	"go.fm/constants"
-	lfm "go.fm/lastfm/v2"
-	"go.fm/lastfm/v2/types"
+	"go.fm/lfm"
+	"go.fm/lfm/types"
 	"go.fm/types/cmd"
 )
 
 type Command struct{}
+type Fav struct {
+	Name      string
+	URL       string
+	PlayCount string
+}
+
+func fetchFav[T any](fetch func() (T, error), extract func(T) Fav) Fav {
+	data, err := fetch()
+	if err != nil {
+		return Fav{"none", "", "0"}
+	}
+	return extract(data)
+}
 
 func (Command) Data() discord.ApplicationCommandCreate {
 	return discord.SlashCommandCreate{
@@ -31,7 +44,6 @@ func (Command) Data() discord.ApplicationCommandCreate {
 
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
-
 	if err := reply.Defer(); err != nil {
 		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
@@ -54,44 +66,44 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		realName = user.Name
 	}
 
-	var favTrack *types.UserGetTopTracks
-	var trackName, trackURL string
+	favTrack := fetchFav(
+		func() (*types.UserGetTopTracks, error) {
+			return ctx.LastFM.User.GetTopTracks(lfm.P{"user": username, "limit": 1})
+		},
+		func(tt *types.UserGetTopTracks) Fav {
+			if len(tt.Tracks) == 0 {
+				return Fav{"none", "", "0"}
+			}
+			t := tt.Tracks[0]
+			return Fav{t.Name, t.Url, t.PlayCount}
+		},
+	)
 
-	topTracks, err := ctx.LastFM.User.GetTopTracks(lfm.P{"user": username, "limit": 1})
-	if err == nil && len(topTracks.Tracks) > 0 {
-		favTrack = topTracks
-		trackName = favTrack.Tracks[0].Name
-		trackURL = favTrack.Tracks[0].Url
-	} else {
-		trackName = "none"
-		trackURL = ""
-	}
+	favArtist := fetchFav(
+		func() (*types.UserGetTopArtists, error) {
+			return ctx.LastFM.User.GetTopArtists(lfm.P{"user": username, "limit": 1})
+		},
+		func(ta *types.UserGetTopArtists) Fav {
+			if len(ta.Artists) == 0 {
+				return Fav{"none", "", "0"}
+			}
+			a := ta.Artists[0]
+			return Fav{a.Name, a.Url, a.PlayCount}
+		},
+	)
 
-	var favArtist *types.UserGetTopArtists
-	var artistName, artistURL string
-
-	topArtists, err := ctx.LastFM.User.GetTopArtists(lfm.P{"user": username, "limit": 1})
-	if err == nil && len(topArtists.Artists) > 0 {
-		favArtist = topArtists
-		artistName = favArtist.Artists[0].Name
-		artistURL = favArtist.Artists[0].Url
-	} else {
-		artistName = "none"
-		artistURL = ""
-	}
-
-	var favAlbum *types.UserGetTopAlbums
-	var albumName, albumURL string
-
-	topAlbums, err := ctx.LastFM.User.GetTopAlbums(lfm.P{"user": username, "limit": 1})
-	if err == nil && len(topAlbums.Albums) > 0 {
-		favAlbum = topAlbums
-		albumName = favAlbum.Albums[0].Name
-		albumURL = favAlbum.Albums[0].Url
-	} else {
-		albumName = "none"
-		albumURL = ""
-	}
+	favAlbum := fetchFav(
+		func() (*types.UserGetTopAlbums, error) {
+			return ctx.LastFM.User.GetTopAlbums(lfm.P{"user": username, "limit": 1})
+		},
+		func(ta *types.UserGetTopAlbums) Fav {
+			if len(ta.Albums) == 0 {
+				return Fav{"none", "", "0"}
+			}
+			a := ta.Albums[0]
+			return Fav{a.Name, a.Url, a.PlayCount}
+		},
+	)
 
 	avatar := ""
 	if len(user.Images) > 0 {
@@ -112,9 +124,9 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		).WithAccessory(discord.NewThumbnail(avatar)),
 		discord.NewSmallSeparator(),
 		discord.NewTextDisplay(
-			fmt.Sprintf("-# *Favorite album* \\💿\n[**%s**](%s)\n", albumName, albumURL)+
-				fmt.Sprintf("-# *Favorite artist* \\🎤\n[**%s**](%s)\n", artistName, artistURL)+
-				fmt.Sprintf("-# *Favorite track* \\🎵\n[**%s**](%s)\n", trackName, trackURL),
+			fmt.Sprintf("-# *Favorite album* \\💿\n[**%s**](%s) — %s plays\n", favAlbum.Name, favAlbum.URL, favAlbum.PlayCount)+
+				fmt.Sprintf("-# *Favorite artist* \\🎤\n[**%s**](%s) — %s plays\n", favArtist.Name, favArtist.URL, favArtist.PlayCount)+
+				fmt.Sprintf("-# *Favorite track* \\🎵\n[**%s**](%s) — %s plays\n", favTrack.Name, favTrack.URL, favTrack.PlayCount),
 		),
 		discord.NewSmallSeparator(),
 		discord.NewTextDisplayf(

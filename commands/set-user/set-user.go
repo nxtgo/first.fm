@@ -11,7 +11,7 @@ import (
 
 	"go.fm/constants"
 	"go.fm/db"
-	lfm "go.fm/lastfm/v2"
+	"go.fm/lfm"
 	"go.fm/logger"
 	"go.fm/types/cmd"
 )
@@ -38,7 +38,6 @@ func (Command) Data() discord.ApplicationCommandCreate {
 
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
-
 	if err := reply.Defer(); err != nil {
 		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return

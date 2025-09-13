@@ -1,7 +1,5 @@
 package types
 
-import "encoding/xml"
-
 // user.getArtistTracks
 type UserGetArtistTracks struct {
 	User       string `xml:"user,attr"`
@@ -40,17 +38,16 @@ type UserGetArtistTracks struct {
 
 // user.getInfo
 type UserGetInfo struct {
-	XMLName    xml.Name `xml:"user"`
-	Name       string   `xml:"name"`
-	RealName   string   `xml:"realname"`
-	Url        string   `xml:"url"`
-	Country    string   `xml:"country"`
-	Age        string   `xml:"age"`
-	Gender     string   `xml:"gender"`
-	Subscriber string   `xml:"subscriber"`
-	PlayCount  string   `xml:"playcount"`
-	Playlists  string   `xml:"playlists"`
-	Bootstrap  string   `xml:"bootstrap"`
+	Name       string `xml:"name"`
+	RealName   string `xml:"realname"`
+	Url        string `xml:"url"`
+	Country    string `xml:"country"`
+	Age        string `xml:"age"`
+	Gender     string `xml:"gender"`
+	Subscriber string `xml:"subscriber"`
+	PlayCount  string `xml:"playcount"`
+	Playlists  string `xml:"playlists"`
+	Bootstrap  string `xml:"bootstrap"`
 	Registered struct {
 		Unixtime string `xml:"unixtime,attr"`
 		Time     string `xml:",chardata"`
@@ -67,12 +64,11 @@ type UserGetInfo struct {
 
 // user.getRecentTracks
 type UserGetRecentTracks struct {
-	XMLName    xml.Name `xml:"recenttracks"`
-	User       string   `xml:"user,attr"`
-	Total      int      `xml:"total,attr"`
-	Page       int      `xml:"page,attr"`
-	PerPage    int      `xml:"perPage,attr"`
-	TotalPages int      `xml:"totalPages,attr"`
+	User       string `xml:"user,attr"`
+	Total      int    `xml:"total,attr"`
+	Page       int    `xml:"page,attr"`
+	PerPage    int    `xml:"perPage,attr"`
+	TotalPages int    `xml:"totalPages,attr"`
 	Tracks     []struct {
 		NowPlaying string `xml:"nowplaying,attr,omitempty"`
 		Artist     struct {
@@ -100,13 +96,12 @@ type UserGetRecentTracks struct {
 
 // user.getTopAlbums
 type UserGetTopAlbums struct {
-	XMLName    xml.Name `xml:"topalbums"`
-	User       string   `xml:"user,attr"`
-	Type       string   `xml:"type,attr"`
-	Total      int      `xml:"total,attr"`
-	Page       int      `xml:"page,attr"`
-	PerPage    int      `xml:"perPage,attr"`
-	TotalPages int      `xml:"totalPages,attr"`
+	User       string `xml:"user,attr"`
+	Type       string `xml:"type,attr"`
+	Total      int    `xml:"total,attr"`
+	Page       int    `xml:"page,attr"`
+	PerPage    int    `xml:"perPage,attr"`
+	TotalPages int    `xml:"totalPages,attr"`
 	Albums     []struct {
 		Rank      string `xml:"rank,attr"`
 		Name      string `xml:"name"`
@@ -127,13 +122,12 @@ type UserGetTopAlbums struct {
 
 // user.getTopArtists
 type UserGetTopArtists struct {
-	XMLName    xml.Name `xml:"topartists"`
-	User       string   `xml:"user,attr"`
-	Type       string   `xml:"type,attr"`
-	Total      int      `xml:"total,attr"`
-	Page       int      `xml:"page,attr"`
-	PerPage    int      `xml:"perPage,attr"`
-	TotalPages int      `xml:"totalPages,attr"`
+	User       string `xml:"user,attr"`
+	Type       string `xml:"type,attr"`
+	Total      int    `xml:"total,attr"`
+	Page       int    `xml:"page,attr"`
+	PerPage    int    `xml:"perPage,attr"`
+	TotalPages int    `xml:"totalPages,attr"`
 	Artists    []struct {
 		Rank       string `xml:"rank,attr"`
 		Name       string `xml:"name"`
@@ -150,9 +144,8 @@ type UserGetTopArtists struct {
 
 // user.getTopTags
 type UserGetTopTags struct {
-	XMLName xml.Name `xml:"toptags"`
-	User    string   `xml:"user,attr"`
-	Tags    []struct {
+	User string `xml:"user,attr"`
+	Tags []struct {
 		Name  string `xml:"name"`
 		Count string `xml:"count"`
 		Url   string `xml:"url"`
@@ -161,13 +154,12 @@ type UserGetTopTags struct {
 
 // user.getTopTracks
 type UserGetTopTracks struct {
-	XMLName    xml.Name `xml:"toptracks"`
-	User       string   `xml:"user,attr"`
-	Type       string   `xml:"type,attr"`
-	Total      int      `xml:"total,attr"`
-	Page       int      `xml:"page,attr"`
-	PerPage    int      `xml:"perPage,attr"`
-	TotalPages int      `xml:"totalPages,attr"`
+	User       string `xml:"user,attr"`
+	Type       string `xml:"type,attr"`
+	Total      int    `xml:"total,attr"`
+	Page       int    `xml:"page,attr"`
+	PerPage    int    `xml:"perPage,attr"`
+	TotalPages int    `xml:"totalPages,attr"`
 	Tracks     []struct {
 		Rank       string `xml:"rank,attr"`
 		Name       string `xml:"name"`

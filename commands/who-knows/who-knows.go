@@ -9,11 +9,17 @@ import (
 	"github.com/disgoorg/disgo/events"
 
 	"go.fm/constants"
-	lfm "go.fm/lastfm/v2"
+	"go.fm/lfm"
 	"go.fm/types/cmd"
+	"go.fm/utils/image"
 )
 
 type Command struct{}
+
+var (
+	maxLimit int = 100
+	minLimit int = 5
+)
 
 func (Command) Data() discord.ApplicationCommandCreate {
 	return discord.SlashCommandCreate{
@@ -38,6 +44,13 @@ func (Command) Data() discord.ApplicationCommandCreate {
 				Description: "name of the artist/track/album",
 				Required:    false,
 			},
+			discord.ApplicationCommandOptionInt{
+				Name:        "limit",
+				Description: "max entries for the list (max: 100, min: 5)",
+				Required:    false,
+				MinValue:    &minLimit,
+				MaxValue:    &maxLimit,
+			},
 		},
 	}
 }
@@ -49,10 +62,15 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return
 	}
 
-	tType := e.SlashCommandInteractionData().String("type")
+	t := e.SlashCommandInteractionData().String("type")
+	limit, limitDefined := e.SlashCommandInteractionData().OptInt("limit")
 	name, defined := e.SlashCommandInteractionData().OptString("name")
+	var artistName string
 
-	var img string
+	if !limitDefined {
+		limit = 10
+	}
+
 	if !defined {
 		currentUser, err := ctx.Database.GetUser(ctx.Context, e.Member().User.ID.String())
 		if err != nil {
@@ -67,15 +85,15 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		}
 
 		current := tracks.Tracks[0]
-		img = current.Images[len(current.Images)-1].Url
-
-		switch tType {
+		switch t {
 		case "artist":
 			name = current.Artist.Name
 		case "track":
 			name = current.Name
+			artistName = current.Artist.Name
 		case "album":
 			name = current.Album.Name
+			artistName = current.Artist.Name
 		}
 	}
 
@@ -95,7 +113,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		results []result
 		mu      sync.Mutex
 		wg      sync.WaitGroup
-		sem     = make(chan struct{}, 10)
+		sem     = make(chan struct{}, limit)
 	)
 
 	for id, username := range users {
@@ -105,10 +123,10 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			defer func() { <-sem }()
 
 			count, err := ctx.LastFM.User.GetPlays(lfm.P{
-				"user":  usernameCopy,
-				"name":  name,
-				"type":  tType,
-				"limit": 1000,
+				"user":   usernameCopy,
+				"name":   name,
+				"type":   t,
+				"artist": artistName,
 			})
 			if err != nil || count == 0 {
 				return
@@ -125,7 +143,6 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	}
 
 	wg.Wait()
-	close(sem)
 
 	if len(results) == 0 {
 		_ = ctx.Error(e, constants.ErrorNoListeners)
@@ -136,20 +153,79 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return results[i].PlayCount > results[j].PlayCount
 	})
 
+	betterName := name
+	var thumbnail string
+
+	switch t {
+	case "artist":
+		artist, err := ctx.LastFM.Artist.GetInfo(lfm.P{"artist": name})
+		if err == nil {
+			if len(artist.Images) > 0 {
+				thumbnail = artist.Images[len(artist.Images)-1].Url
+			}
+			if artist.Name != "" {
+				betterName = artist.Name
+			}
+		}
+
+	case "track":
+		params := lfm.P{"track": name}
+		if artistName != "" {
+			params["artist"] = artistName
+		}
+		track, err := ctx.LastFM.Track.GetInfo(params)
+		if err == nil {
+			if len(track.Album.Images) > 0 {
+				thumbnail = track.Album.Images[len(track.Album.Images)-1].Url
+			}
+			if track.Name != "" {
+				betterName = track.Name
+			}
+		}
+
+	case "album":
+		params := lfm.P{"album": name}
+		if artistName != "" {
+			params["artist"] = artistName
+		}
+		album, err := ctx.LastFM.Album.GetInfo(params)
+		if err == nil {
+			if len(album.Images) > 0 {
+				thumbnail = album.Images[len(album.Images)-1].Url
+			}
+			if album.Name != "" {
+				betterName = album.Name
+			}
+		}
+	}
+
+	if thumbnail == "" {
+		thumbnail = "https://lastfm.freetls.fastly.net/i/u/avatar170s/818148bf682d429dc215c1705eb27b98.png"
+	}
+
 	list := ""
 	for i, r := range results {
-		if i >= 10 {
+		if i >= limit {
 			break
 		}
-		list += fmt.Sprintf("%d. [%s](<https://www.last.fm/user/%s>) (<@%s>) — %d plays\n",
-			i+1, r.Username, r.Username, r.UserID, r.PlayCount)
+		list += fmt.Sprintf(
+			"%d. [%s](<https://www.last.fm/user/%s>) (<@%s>) — **%d** plays\n",
+			i+1, r.Username, r.Username, r.UserID, r.PlayCount,
+		)
 	}
 
-	embed := ctx.QuickEmbed(name, list)
-	embed.Author = &discord.EmbedAuthor{Name: "who listened more to..."}
-	if img != "" {
-		embed.Thumbnail = &discord.EmbedResource{URL: img}
+	color, err := image.DominantColor(thumbnail)
+	if err != nil {
+		color = 0x00ADD8
 	}
 
-	_ = reply.Embed(embed).Edit()
+	guild, _ := e.Guild()
+	component := discord.NewContainer(
+		discord.NewSection(
+			discord.NewTextDisplayf("### Who knows %s %s?\n-# in *%s*", t, betterName, guild.Name),
+			discord.NewTextDisplay(list),
+		).WithAccessory(discord.NewThumbnail(thumbnail)),
+	).WithAccentColor(color)
+
+	_ = reply.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
 }

@@ -1,14 +1,13 @@
 package fm
 
 import (
-	"fmt"
-
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 
 	"go.fm/constants"
-	lfm "go.fm/lastfm/v2"
+	"go.fm/lfm"
 	"go.fm/types/cmd"
+	"go.fm/utils/image"
 )
 
 type Command struct{}
@@ -29,7 +28,6 @@ func (Command) Data() discord.ApplicationCommandCreate {
 
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
-
 	if err := reply.Defer(); err != nil {
 		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
@@ -58,20 +56,20 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return
 	}
 
-	embed := ctx.QuickEmbed(
-		track.Name,
-		fmt.Sprintf("by **%s**\n-# *at %s*", track.Artist.Name, track.Album.Name),
-	)
-	embed.Author = &discord.EmbedAuthor{
-		Name: fmt.Sprintf("%s's current track", user),
-		URL:  fmt.Sprintf("https://www.last.fm/user/%s", user),
-	}
-	embed.URL = track.Url
-	if len(track.Images) > 0 {
-		embed.Thumbnail = &discord.EmbedResource{
-			URL: track.Images[len(track.Images)-1].Url,
-		}
+	thumbnail := track.Images[len(track.Images)-1].Url
+	trackData, _ := ctx.LastFM.Track.GetInfo(lfm.P{"user": user, "track": track.Name, "artist": track.Artist.Name})
+	color, err := image.DominantColor(thumbnail)
+	if err != nil {
+		color = 0x00ADD8
 	}
 
-	_ = reply.Embed(embed).Edit()
+	component := discord.NewContainer(
+		discord.NewSection(
+			discord.NewTextDisplayf("## [%s](%s)\nby **%s**\n-# *At %s*", track.Name, track.Url, track.Artist.Name, track.Album.Name),
+		).WithAccessory(discord.NewThumbnail(thumbnail)),
+		discord.NewSmallSeparator(),
+		discord.NewTextDisplayf("Scrobbled **%d** times", trackData.UserPlayCount),
+	).WithAccentColor(color)
+
+	_ = reply.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
 }
