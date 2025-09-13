@@ -10,10 +10,11 @@ package lfm
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
 
 	httpx "github.com/nxtgo/httpx/client"
-	"go.fm/cache"
+	"go.fm/cache/v2"
 )
 
 const (
@@ -31,12 +32,12 @@ type LastFMApi struct {
 	params *lastFMParams
 	client *httpx.Client
 	apiKey string
-	cache  *cache.LastFMCache
+	cache  *cache.Cache
 
 	User *userApi
 }
 
-func New(key string, c *cache.LastFMCache) *LastFMApi {
+func New(key string, c *cache.Cache) *LastFMApi {
 	params := lastFMParams{
 		apikey: key,
 		useragent: "go.fm/0.0.1 (discord bot; " +
@@ -64,31 +65,32 @@ func New(key string, c *cache.LastFMCache) *LastFMApi {
 func (c *LastFMApi) baseRequest(method string, params P) *httpx.Request {
 	req := c.client.Get("").
 		Query("api_key", c.apiKey).
-		Query("format", "xml").
 		Query("method", method)
 
 	for k, v := range params {
-		if str, ok := v.(string); ok {
-			req.Query(k, str)
-		}
+		req.Query(k, fmt.Sprintf("%v", v))
 	}
 
 	return req
 }
 
-func decodeResponse(data []byte, out any) error {
-	var env Envelope
-	if err := xml.Unmarshal(data, &env); err != nil {
-		return err
+func decodeResponse(body []byte, result any) (err error) {
+	var base Envelope
+	err = xml.Unmarshal(body, &base)
+	if err != nil {
+		return
 	}
-
-	if env.Status == "failed" && env.Error != nil {
-		return fmt.Errorf("lastfm error %d: %s", env.Error.Code, env.Error.Message)
+	if base.Status == "failed" {
+		var errorDetail ApiError
+		err = xml.Unmarshal(base.Inner, &errorDetail)
+		if err != nil {
+			return
+		}
+		err = errors.New(errorDetail.Message)
+		return
+	} else if result == nil {
+		return
 	}
-
-	if err := xml.Unmarshal(data, out); err != nil {
-		return err
-	}
-
-	return nil
+	err = xml.Unmarshal(base.Inner, result)
+	return
 }

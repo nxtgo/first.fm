@@ -1,4 +1,4 @@
-package lfm
+package types
 
 import "encoding/xml"
 
@@ -41,7 +41,6 @@ type UserGetArtistTracks struct {
 // user.getInfo
 type UserGetInfo struct {
 	XMLName    xml.Name `xml:"user"`
-	Id         string   `xml:"id"`
 	Name       string   `xml:"name"`
 	RealName   string   `xml:"realname"`
 	Url        string   `xml:"url"`
@@ -61,6 +60,9 @@ type UserGetInfo struct {
 		Size string `xml:"size,attr"`
 		Url  string `xml:",chardata"`
 	} `xml:"image"`
+	ArtistCount string `xml:"artist_count"`
+	AlbumCount  string `xml:"album_count"`
+	TrackCount  string `xml:"track_count"`
 }
 
 // user.getRecentTracks
