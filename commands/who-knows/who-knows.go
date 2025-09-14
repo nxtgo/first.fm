@@ -67,7 +67,7 @@ func (Command) Data() discord.ApplicationCommandCreate {
 			},
 			discord.ApplicationCommandOptionInt{
 				Name:        "limit",
-				Description: "max entries for the list (max: 100, min: 5)",
+				Description: "max entries for the list (max: 100, min: 3)",
 				Required:    false,
 				MinValue:    &minLimit,
 				MaxValue:    &maxLimit,
@@ -112,7 +112,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return results[i].PlayCount > results[j].PlayCount
 	})
 
-	sendWhoKnowsResponse(reply, queryInfo, results, options)
+	sendWhoKnowsResponse(e, reply, queryInfo, results, options)
 }
 
 type CommandOptions struct {
@@ -329,10 +329,15 @@ func fetchUserPlayCount(queryInfo *QueryInfo, username string, ctx cmd.CommandCo
 	return count
 }
 
-func sendWhoKnowsResponse(reply *cmd.ResponseBuilder, queryInfo *QueryInfo, results []PlayResult, options CommandOptions) {
-	scope := "this server"
+func sendWhoKnowsResponse(e *events.ApplicationCommandInteractionCreate, reply *cmd.ResponseBuilder, queryInfo *QueryInfo, results []PlayResult, options CommandOptions) {
+	scope := "in this server"
 	if options.IsGlobal {
 		scope = "globally"
+	} else {
+		guild, ok := e.Guild()
+		if ok {
+			scope = fmt.Sprintf("in %s", guild.Name)
+		}
 	}
 
 	title := fmt.Sprintf("### Who knows %s **%s** %s?", queryInfo.Type, queryInfo.BetterName, scope)
