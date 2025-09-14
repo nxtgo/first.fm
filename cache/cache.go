@@ -74,9 +74,9 @@ func (c *Cache) StatsString() string {
 
 	fmt.Fprintf(&sb, "%-10s %-8s %-8s %-8s %-10s %-6s\n",
 		"cache", "hits", "misses", "loads", "evictions", "size")
-	fmt.Fprintf(&sb, "%s\n", strings.Repeat("-", 53))
 
 	writeStats := func(name string, s gce.Stats) {
+		fmt.Fprintf(&sb, "%s\n", strings.Repeat("-", 53))
 		fmt.Fprintf(&sb, "%-10s %-8d %-8d %-8d %-10d %-6d\n",
 			name, s.Hits, s.Misses, s.Loads, s.Evictions, s.CurrentSize)
 	}

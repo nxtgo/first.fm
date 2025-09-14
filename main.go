@@ -40,7 +40,7 @@ func init() {
 	}
 
 	flag.BoolVar(&globalCmds, "global", true, "upload global commands to discord")
-	flag.BoolVar(&globalCmds, "delete", false, "delete commands on exit")
+	flag.BoolVar(&deleteCommands, "delete", false, "delete commands on exit")
 	flag.StringVar(&dbPath, "db", "database.db", "path to the SQLite database file")
 	flag.Parse()
 }

@@ -54,7 +54,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return
 	}
 
-	user, err := ctx.LastFM.User.GetInfo(lfm.P{"user": username})
+	user, err := ctx.LastFM.User.GetInfoWithPrefetch(lfm.P{"user": username})
 	if err != nil {
 		ctx.Error(e, constants.ErrorUserNotFound)
 		return

@@ -1,15 +1,22 @@
+// this command represents the future command structure for all
+// go.fm commands, heavily wip.
+
 package whoknows
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+	"github.com/disgoorg/snowflake/v2"
 
 	"go.fm/constants"
 	"go.fm/lfm"
+	"go.fm/lfm/types"
 	"go.fm/types/cmd"
 	"go.fm/utils/image"
 )
@@ -18,13 +25,27 @@ type Command struct{}
 
 var (
 	maxLimit int = 100
-	minLimit int = 5
+	minLimit int = 3
 )
+
+type PlayResult struct {
+	UserID    string
+	Username  string
+	PlayCount int
+}
+
+type QueryInfo struct {
+	Type       string
+	Name       string
+	ArtistName string
+	Thumbnail  string
+	BetterName string
+}
 
 func (Command) Data() discord.ApplicationCommandCreate {
 	return discord.SlashCommandCreate{
 		Name:        "who-knows",
-		Description: "see who in this guild has listened to a track/artist/album the most",
+		Description: "see who has listened to a track/artist/album the most",
 		IntegrationTypes: []discord.ApplicationIntegrationType{
 			discord.ApplicationIntegrationTypeGuildInstall,
 		},
@@ -51,6 +72,11 @@ func (Command) Data() discord.ApplicationCommandCreate {
 				MinValue:    &minLimit,
 				MaxValue:    &maxLimit,
 			},
+			discord.ApplicationCommandOptionBool{
+				Name:        "global",
+				Description: "show global stats across all registered users instead of just this guild",
+				Required:    false,
+			},
 		},
 	}
 }
@@ -58,92 +84,25 @@ func (Command) Data() discord.ApplicationCommandCreate {
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
 	if err := reply.Defer(); err != nil {
-		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
+		ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
-	t := e.SlashCommandInteractionData().String("type")
-	limit, limitDefined := e.SlashCommandInteractionData().OptInt("limit")
-	name, defined := e.SlashCommandInteractionData().OptString("name")
-	var artistName string
+	options := parseCommandOptions(e)
 
-	if !limitDefined {
-		limit = 10
-	}
-
-	if !defined {
-		currentUser, err := ctx.Database.GetUser(ctx.Context, e.Member().User.ID.String())
-		if err != nil {
-			_ = ctx.Error(e, constants.ErrorGetUser)
-			return
-		}
-
-		tracks, err := ctx.LastFM.User.GetRecentTracks(lfm.P{"user": currentUser, "limit": 1})
-		if err != nil || len(tracks.Tracks) == 0 || tracks.Tracks[0].NowPlaying != "true" {
-			_ = ctx.Error(e, constants.ErrorFetchCurrentTrack)
-			return
-		}
-
-		current := tracks.Tracks[0]
-		switch t {
-		case "artist":
-			name = current.Artist.Name
-		case "track":
-			name = current.Name
-			artistName = current.Artist.Name
-		case "album":
-			name = current.Album.Name
-			artistName = current.Artist.Name
-		}
-	}
-
-	users, err := ctx.LastFM.User.GetUsersByGuild(ctx.Context, e, ctx.Database)
+	queryInfo, err := resolveQueryInfo(options, e, ctx)
 	if err != nil {
-		_ = ctx.Error(e, constants.ErrorUnexpected)
+		ctx.Error(e, err.Error())
 		return
 	}
 
-	type result struct {
-		UserID    string
-		Username  string
-		PlayCount int
+	users, err := getUserList(options.IsGlobal, e, ctx)
+	if err != nil {
+		ctx.Error(e, constants.ErrorUnexpected)
+		return
 	}
 
-	var (
-		results []result
-		mu      sync.Mutex
-		wg      sync.WaitGroup
-		sem     = make(chan struct{}, limit)
-	)
-
-	for id, username := range users {
-		idCopy, usernameCopy := id.String(), username
-		wg.Go(func() {
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			count, err := ctx.LastFM.User.GetPlays(lfm.P{
-				"user":   usernameCopy,
-				"name":   name,
-				"type":   t,
-				"artist": artistName,
-			})
-			if err != nil || count == 0 {
-				return
-			}
-
-			mu.Lock()
-			results = append(results, result{
-				UserID:    idCopy,
-				Username:  usernameCopy,
-				PlayCount: count,
-			})
-			mu.Unlock()
-		})
-	}
-
-	wg.Wait()
-
+	results := fetchPlayCounts(queryInfo, users, options.Limit, ctx)
 	if len(results) == 0 {
 		ctx.Error(e, constants.ErrorNoListeners)
 		return
@@ -153,79 +112,267 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return results[i].PlayCount > results[j].PlayCount
 	})
 
-	betterName := name
-	var thumbnail string
+	sendWhoKnowsResponse(reply, queryInfo, results, options)
+}
 
-	switch t {
+type CommandOptions struct {
+	Type     string
+	Name     string
+	Limit    int
+	IsGlobal bool
+}
+
+func parseCommandOptions(e *events.ApplicationCommandInteractionCreate) CommandOptions {
+	data := e.SlashCommandInteractionData()
+
+	limit := 10
+	if l, defined := data.OptInt("limit"); defined {
+		limit = l
+	}
+
+	isGlobal, _ := data.OptBool("global")
+	name, _ := data.OptString("name")
+
+	return CommandOptions{
+		Type:     data.String("type"),
+		Name:     name,
+		Limit:    limit,
+		IsGlobal: isGlobal,
+	}
+}
+
+func resolveQueryInfo(options CommandOptions, e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) (*QueryInfo, error) {
+	queryInfo := &QueryInfo{Type: options.Type}
+
+	if options.Name != "" {
+		queryInfo.Name = options.Name
+	} else {
+		current, err := getCurrentTrack(e, ctx)
+		if err != nil {
+			return nil, err
+		}
+		currentTrack := current.Tracks[0]
+
+		switch options.Type {
+		case "artist":
+			queryInfo.Name = currentTrack.Artist.Name
+		case "track":
+			queryInfo.Name = currentTrack.Name
+			queryInfo.ArtistName = currentTrack.Artist.Name
+		case "album":
+			queryInfo.Name = currentTrack.Album.Name
+			queryInfo.ArtistName = currentTrack.Artist.Name
+		}
+	}
+
+	enrichQueryInfo(queryInfo, ctx)
+
+	return queryInfo, nil
+}
+
+func getCurrentTrack(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) (*types.UserGetRecentTracks, error) {
+	currentUser, err := ctx.Database.GetUser(ctx.Context, e.Member().User.ID.String())
+	if err != nil {
+		return nil, fmt.Errorf(constants.ErrorGetUser)
+	}
+
+	tracks, err := ctx.LastFM.User.GetRecentTracks(lfm.P{"user": currentUser, "limit": 1})
+	if err != nil || len(tracks.Tracks) == 0 || tracks.Tracks[0].NowPlaying != "true" {
+		return nil, fmt.Errorf(constants.ErrorFetchCurrentTrack)
+	}
+
+	return tracks, nil
+}
+
+func enrichQueryInfo(queryInfo *QueryInfo, ctx cmd.CommandContext) {
+	queryInfo.BetterName = queryInfo.Name
+	queryInfo.Thumbnail = "https://lastfm.freetls.fastly.net/i/u/avatar170s/818148bf682d429dc215c1705eb27b98.png"
+
+	switch queryInfo.Type {
 	case "artist":
-		artist, err := ctx.LastFM.Artist.GetInfo(lfm.P{"artist": name})
-		if err == nil {
+		if artist, err := ctx.LastFM.Artist.GetInfo(lfm.P{"artist": queryInfo.Name}); err == nil {
 			if len(artist.Images) > 0 {
-				thumbnail = artist.Images[len(artist.Images)-1].Url
+				queryInfo.Thumbnail = artist.Images[len(artist.Images)-1].Url
 			}
 			if artist.Name != "" {
-				betterName = artist.Name
+				queryInfo.BetterName = artist.Name
 			}
 		}
 
 	case "track":
-		params := lfm.P{"track": name}
-		if artistName != "" {
-			params["artist"] = artistName
+		params := lfm.P{"track": queryInfo.Name}
+		if queryInfo.ArtistName != "" {
+			params["artist"] = queryInfo.ArtistName
 		}
-		track, err := ctx.LastFM.Track.GetInfo(params)
-		if err == nil {
+		if track, err := ctx.LastFM.Track.GetInfo(params); err == nil {
 			if len(track.Album.Images) > 0 {
-				thumbnail = track.Album.Images[len(track.Album.Images)-1].Url
+				queryInfo.Thumbnail = track.Album.Images[len(track.Album.Images)-1].Url
 			}
 			if track.Name != "" {
-				betterName = track.Name
+				queryInfo.BetterName = track.Name
 			}
 		}
 
 	case "album":
-		params := lfm.P{"album": name}
-		if artistName != "" {
-			params["artist"] = artistName
+		params := lfm.P{"album": queryInfo.Name}
+		if queryInfo.ArtistName != "" {
+			params["artist"] = queryInfo.ArtistName
 		}
-		album, err := ctx.LastFM.Album.GetInfo(params)
-		if err == nil {
+		if album, err := ctx.LastFM.Album.GetInfo(params); err == nil {
 			if len(album.Images) > 0 {
-				thumbnail = album.Images[len(album.Images)-1].Url
+				queryInfo.Thumbnail = album.Images[len(album.Images)-1].Url
 			}
 			if album.Name != "" {
-				betterName = album.Name
+				queryInfo.BetterName = album.Name
 			}
 		}
 	}
+}
 
-	if thumbnail == "" {
-		thumbnail = "https://lastfm.freetls.fastly.net/i/u/avatar170s/818148bf682d429dc215c1705eb27b98.png"
+func getUserList(isGlobal bool, e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) (map[snowflake.ID]string, error) {
+	if isGlobal {
+		return getAllRegisteredUsers(ctx)
+	}
+	return ctx.LastFM.User.GetUsersByGuild(ctx.Context, e, ctx.Database)
+}
+
+func getAllRegisteredUsers(ctx cmd.CommandContext) (map[snowflake.ID]string, error) {
+	if cached, ok := ctx.Cache.Members.Get(snowflake.ID(0)); ok {
+		return cached, nil
+	}
+
+	users, err := ctx.Database.ListUsers(ctx.Context)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[snowflake.ID]string, len(users))
+	for _, user := range users {
+		if id, err := snowflake.Parse(user.DiscordID); err == nil {
+			result[id] = user.LastfmUsername
+		}
+	}
+
+	ctx.Cache.Members.Set(snowflake.ID(0), result, 5*time.Minute)
+
+	return result, nil
+}
+
+func fetchPlayCounts(queryInfo *QueryInfo, users map[snowflake.ID]string, maxWorkers int, ctx cmd.CommandContext) []PlayResult {
+	if len(users) == 0 {
+		return nil
+	}
+
+	workerLimit := min(maxWorkers, 20)
+	sem := make(chan struct{}, workerLimit)
+
+	var (
+		results []PlayResult
+		mu      sync.Mutex
+		wg      sync.WaitGroup
+	)
+
+	ctx_timeout, cancel := context.WithTimeout(ctx.Context, 30*time.Second)
+	defer cancel()
+
+	for userID, username := range users {
+		select {
+		case <-ctx_timeout.Done():
+			goto done
+		default:
+		}
+
+		wg.Add(1)
+		go func(id snowflake.ID, user string) {
+			defer wg.Done()
+
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx_timeout.Done():
+				return
+			}
+
+			count := fetchUserPlayCount(queryInfo, user, ctx)
+			if count > 0 {
+				mu.Lock()
+				results = append(results, PlayResult{
+					UserID:    id.String(),
+					Username:  user,
+					PlayCount: count,
+				})
+				mu.Unlock()
+			}
+		}(userID, username)
+	}
+
+done:
+	wg.Wait()
+	return results
+}
+
+func fetchUserPlayCount(queryInfo *QueryInfo, username string, ctx cmd.CommandContext) int {
+	params := lfm.P{
+		"user": username,
+		"name": queryInfo.Name,
+		"type": queryInfo.Type,
+	}
+
+	if queryInfo.ArtistName != "" {
+		params["artist"] = queryInfo.ArtistName
+	}
+
+	count, err := ctx.LastFM.User.GetPlays(params)
+	if err != nil {
+		return 0
+	}
+	return count
+}
+
+func sendWhoKnowsResponse(reply *cmd.ResponseBuilder, queryInfo *QueryInfo, results []PlayResult, options CommandOptions) {
+	scope := "this server"
+	if options.IsGlobal {
+		scope = "globally"
+	}
+
+	title := fmt.Sprintf("### Who knows %s **%s** %s?", queryInfo.Type, queryInfo.BetterName, scope)
+
+	list := buildResultsList(results, options.Limit)
+
+	color := 0x00ADD8
+	if dominantColor, err := image.DominantColor(queryInfo.Thumbnail); err == nil {
+		color = dominantColor
+	}
+
+	component := discord.NewContainer(
+		discord.NewSection(
+			discord.NewTextDisplay(title),
+			discord.NewTextDisplay(list),
+		).WithAccessory(discord.NewThumbnail(queryInfo.Thumbnail)),
+	).WithAccentColor(color)
+
+	reply.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
+}
+
+func buildResultsList(results []PlayResult, limit int) string {
+	if len(results) == 0 {
+		return "No listeners found."
 	}
 
 	list := ""
-	for i, r := range results {
-		if i >= limit {
-			break
-		}
+	displayLimit := min(len(results), limit)
+
+	for i := range displayLimit {
+		r := results[i]
 		list += fmt.Sprintf(
 			"%d. [%s](<https://www.last.fm/user/%s>) (*<@%s>*) — **%d** plays\n",
 			i+1, r.Username, r.Username, r.UserID, r.PlayCount,
 		)
 	}
 
-	color, err := image.DominantColor(thumbnail)
-	if err != nil {
-		color = 0x00ADD8
+	if len(results) > limit {
+		list += fmt.Sprintf("\n*...and %d more listeners*", len(results)-limit)
 	}
 
-	guild, _ := e.Guild()
-	component := discord.NewContainer(
-		discord.NewSection(
-			discord.NewTextDisplayf("### Who knows %s %s?\n-# in *%s*", t, betterName, guild.Name),
-			discord.NewTextDisplay(list),
-		).WithAccessory(discord.NewThumbnail(thumbnail)),
-	).WithAccentColor(color)
-
-	reply.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
+	return list
 }

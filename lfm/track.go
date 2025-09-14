@@ -1,7 +1,7 @@
 package lfm
 
 import (
-	"fmt"
+	"time"
 
 	"go.fm/lfm/types"
 )
@@ -10,17 +10,8 @@ type trackApi struct {
 	api *LastFMApi
 }
 
-// track.getInfo
 func (t *trackApi) GetInfo(args P) (*types.TrackGetInfo, error) {
-	var key string
-	if mbid, ok := args["mbid"].(string); ok && mbid != "" {
-		key = "mbid:" + mbid
-	} else {
-		artist, _ := args["artist"].(string)
-		track, _ := args["track"].(string)
-		username, _ := args["username"].(string)
-		key = fmt.Sprintf("%s|%s|%s", artist, track, username)
-	}
+	key := generateCacheKey("track", args)
 
 	if cached, ok := t.api.cache.Track.Get(key); ok {
 		return &cached, nil
@@ -37,7 +28,15 @@ func (t *trackApi) GetInfo(args P) (*types.TrackGetInfo, error) {
 		return nil, err
 	}
 
-	t.api.cache.Track.Set(key, result, 0)
+	ttl := t.getAdaptiveTTL(args)
+	t.api.cache.Track.Set(key, result, ttl)
 
 	return &result, nil
+}
+
+func (t *trackApi) getAdaptiveTTL(args P) time.Duration {
+	if _, hasUser := args["username"]; hasUser {
+		return 4 * time.Hour
+	}
+	return 12 * time.Hour
 }

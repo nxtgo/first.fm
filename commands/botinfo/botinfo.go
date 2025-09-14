@@ -52,11 +52,11 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"memory Usage:\n"+
 			"  - alloc: %.2f MB\n"+
 			"  - total: %.2f MB\n"+
-			"  - sys: %.2f MB\n"+
+			"  - sys  : %.2f MB\n"+
 			"uptime: %s\n"+
 			"git:\n"+
-			"  - branch: %s\n"+
-			"  - commit: %s\n"+
+			"  - branch : %s\n"+
+			"  - commit : %s\n"+
 			"  - message: %s\n"+
 			"%s"+
 			"```",
