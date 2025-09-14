@@ -2,7 +2,6 @@ package profile
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
@@ -111,9 +110,6 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	}
 	if avatar == "" {
 		avatar = "https://lastfm.freetls.fastly.net/i/u/avatar170s/818148bf682d429dc215c1705eb27b98.png"
-	}
-	if dot := strings.LastIndex(avatar, "."); dot != -1 {
-		avatar = avatar[:dot] + ".gif"
 	}
 
 	component := discord.NewContainer(

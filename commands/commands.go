@@ -11,6 +11,8 @@ import (
 	"go.fm/commands/fm"
 	"go.fm/commands/profile"
 	"go.fm/commands/set-user"
+	"go.fm/commands/top"
+	"go.fm/commands/update"
 	"go.fm/commands/who-knows"
 
 	"go.fm/types/cmd"
@@ -24,6 +26,8 @@ func init() {
 	Register(whoknows.Command{})
 	Register(setuser.Command{})
 	Register(profile.Command{})
+	Register(top.Command{})
+	Register(update.Command{})
 
 	// non-lastfm commands :prayge:
 	Register(botinfo.Command{})

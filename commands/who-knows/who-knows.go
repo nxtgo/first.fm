@@ -209,7 +209,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			break
 		}
 		list += fmt.Sprintf(
-			"%d. [%s](<https://www.last.fm/user/%s>) (<@%s>) — **%d** plays\n",
+			"%d. [%s](<https://www.last.fm/user/%s>) (*<@%s>*) — **%d** plays\n",
 			i+1, r.Username, r.Username, r.UserID, r.PlayCount,
 		)
 	}
