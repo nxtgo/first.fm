@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/disgoorg/snowflake/v2"
@@ -64,6 +66,52 @@ func NewCache() *Cache {
 			gce.WithMaxEntries(50_000),
 		),
 	}
+}
+
+func (c *Cache) StatsString() string {
+	var sb strings.Builder
+
+	fmt.Fprintf(&sb, "%-10s %-8s %-8s %-8s %-10s %-6s\n",
+		"cache", "hits", "misses", "loads", "evictions", "size")
+	fmt.Fprintf(&sb, "%s\n", strings.Repeat("-", 53))
+
+	writeStats := func(name string, s gce.Stats) {
+		fmt.Fprintf(&sb, "%-10s %-8d %-8d %-8d %-10d %-6d\n",
+			name, s.Hits, s.Misses, s.Loads, s.Evictions, s.CurrentSize)
+	}
+
+	if c.User != nil {
+		writeStats("User", c.User.Stats())
+	}
+	if c.Members != nil {
+		writeStats("Members", c.Members.Stats())
+	}
+	if c.Album != nil {
+		writeStats("Album", c.Album.Stats())
+	}
+	if c.Artist != nil {
+		writeStats("Artist", c.Artist.Stats())
+	}
+	if c.Track != nil {
+		writeStats("Track", c.Track.Stats())
+	}
+	if c.TopAlbums != nil {
+		writeStats("TopAlbums", c.TopAlbums.Stats())
+	}
+	if c.TopArtists != nil {
+		writeStats("TopArtists", c.TopArtists.Stats())
+	}
+	if c.TopTracks != nil {
+		writeStats("TopTracks", c.TopTracks.Stats())
+	}
+	if c.Tracks != nil {
+		writeStats("Tracks", c.Tracks.Stats())
+	}
+	if c.Plays != nil {
+		writeStats("Plays", c.Plays.Stats())
+	}
+
+	return sb.String()
 }
 
 func (c *Cache) Close() {

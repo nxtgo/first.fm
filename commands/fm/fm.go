@@ -30,30 +30,30 @@ func (Command) Data() discord.ApplicationCommandCreate {
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
 	if err := reply.Defer(); err != nil {
-		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
+		ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
 	user, err := ctx.GetUser(e)
 	if err != nil {
-		_ = ctx.Error(e, err.Error())
+		ctx.Error(e, constants.ErrorGetUser)
 		return
 	}
 
 	data, err := ctx.LastFM.User.GetRecentTracks(lfm.P{"user": user, "limit": 1})
 	if err != nil {
-		_ = ctx.Error(e, constants.ErrorFetchCurrentTrack)
+		ctx.Error(e, constants.ErrorFetchCurrentTrack)
 		return
 	}
 
 	if len(data.Tracks) == 0 {
-		_ = ctx.Error(e, constants.ErrorNoTracks)
+		ctx.Error(e, constants.ErrorNoTracks)
 		return
 	}
 
 	track := data.Tracks[0]
 	if track.NowPlaying != "true" {
-		_ = ctx.Error(e, constants.ErrorNotPlaying)
+		ctx.Error(e, constants.ErrorNotPlaying)
 		return
 	}
 
