@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/disgoorg/disgo/bot"
-	dgobot "github.com/disgoorg/disgo/bot"
 	dgocache "github.com/disgoorg/disgo/cache"
 	"github.com/disgoorg/snowflake/v2"
 
@@ -20,7 +19,7 @@ import (
 	"go.fm/cache"
 	"go.fm/commands"
 	"go.fm/db"
-	"go.fm/lastfm"
+	"go.fm/lfm"
 	"go.fm/logger"
 	"go.fm/types/cmd"
 
@@ -55,9 +54,9 @@ func main() {
 		logger.Log.Fatal("missing DISCORD_TOKEN environment variable")
 	}
 
-	lfmCache := cache.NewLastFMCache()
+	lfmCache := cache.NewCache()
+	lfm := lfm.New(os.Getenv("LASTFM_API_KEY"), lfmCache)
 	defer lfmCache.Close()
-	lfm := lastfm.New(lfmCache)
 
 	closeConnection, database := initDatabase(ctx, dbPath)
 	defer closeConnection()
@@ -105,11 +104,11 @@ func initDatabase(ctx context.Context, path string) (func() error, *db.Queries) 
 }
 
 func initDiscordClient(token string) *bot.Client {
-	cacheOptions := dgobot.WithCacheConfigOpts(
-		dgocache.WithCaches(dgocache.FlagMembers),
+	cacheOptions := bot.WithCacheConfigOpts(
+		dgocache.WithCaches(dgocache.FlagMembers, dgocache.FlagGuilds),
 	)
 
-	options := dgobot.WithGatewayConfigOpts(
+	options := bot.WithGatewayConfigOpts(
 		gateway.WithIntents(
 			gateway.IntentsNonPrivileged,
 			gateway.IntentGuildMembers,
@@ -120,7 +119,7 @@ func initDiscordClient(token string) *bot.Client {
 	client, err := disgo.New(
 		token,
 		options,
-		dgobot.WithEventListeners(commands.Handler()),
+		bot.WithEventListeners(commands.Handler()),
 		cacheOptions,
 	)
 	if err != nil {

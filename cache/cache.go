@@ -1,146 +1,100 @@
 package cache
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/disgoorg/snowflake/v2"
 	"github.com/nxtgo/gce"
-	"go.fm/types/lastfm"
+	"go.fm/lfm/types"
 )
 
-type LastFMCache struct {
-	user       *gce.Cache[string, *lastfm.UserInfoResponse]
-	track      *gce.Cache[string, *lastfm.TrackInfoResponse]
-	topArtists *gce.Cache[string, *lastfm.TopArtistsResponse]
-	topAlbums  *gce.Cache[string, *lastfm.TopAlbumsResponse]
-	topTracks  *gce.Cache[string, *lastfm.TopTracksResponse]
-	plays      *gce.Cache[string, int]
-	member     *gce.Cache[snowflake.ID, map[snowflake.ID]string]
+type Cache struct {
+	User       *gce.Cache[string, types.UserGetInfo]
+	Members    *gce.Cache[snowflake.ID, map[snowflake.ID]string]
+	Album      *gce.Cache[string, types.AlbumGetInfo]
+	Artist     *gce.Cache[string, types.ArtistGetInfo]
+	Track      *gce.Cache[string, types.TrackGetInfo]
+	TopAlbums  *gce.Cache[string, types.UserGetTopAlbums]
+	TopArtists *gce.Cache[string, types.UserGetTopArtists]
+	TopTracks  *gce.Cache[string, types.UserGetTopTracks]
+	Tracks     *gce.Cache[string, types.UserGetRecentTracks]
+	Plays      *gce.Cache[string, int]
 }
 
-func NewLastFMCache() *LastFMCache {
-	commonCleanup := gce.WithCleanupInterval(30 * time.Second)
-	commonShards := gce.WithShardCount(64)
-
-	return &LastFMCache{
-		user: gce.New[string, *lastfm.UserInfoResponse](
-			commonShards,
-			commonCleanup,
-			gce.WithDefaultTTL(5*time.Minute),
-			gce.WithMaxEntries(10_000),
-		),
-		track: gce.New[string, *lastfm.TrackInfoResponse](
-			commonShards,
-			commonCleanup,
-			gce.WithDefaultTTL(30*time.Minute),
+func NewCache() *Cache {
+	return &Cache{
+		User: gce.New[string, types.UserGetInfo](
+			gce.WithDefaultTTL(time.Minute),
 			gce.WithMaxEntries(50_000),
 		),
-		topArtists: gce.New[string, *lastfm.TopArtistsResponse](
-			commonShards,
-			commonCleanup,
-			gce.WithDefaultTTL(15*time.Minute),
-			gce.WithMaxEntries(10_000),
+		Members: gce.New[snowflake.ID, map[snowflake.ID]string](
+			gce.WithDefaultTTL(time.Minute*10),
+			gce.WithMaxEntries(2000),
 		),
-		topAlbums: gce.New[string, *lastfm.TopAlbumsResponse](
-			commonShards,
-			commonCleanup,
-			gce.WithDefaultTTL(15*time.Minute),
-			gce.WithMaxEntries(10_000),
+		Album: gce.New[string, types.AlbumGetInfo](
+			gce.WithDefaultTTL(time.Hour*12),
+			gce.WithMaxEntries(64_000),
 		),
-		topTracks: gce.New[string, *lastfm.TopTracksResponse](
-			commonShards,
-			commonCleanup,
-			gce.WithDefaultTTL(15*time.Minute),
-			gce.WithMaxEntries(10_000),
+		Artist: gce.New[string, types.ArtistGetInfo](
+			gce.WithDefaultTTL(time.Hour*12),
+			gce.WithMaxEntries(64_000),
 		),
-		plays: gce.New[string, int](
-			commonShards,
-			commonCleanup,
-			gce.WithDefaultTTL(10*time.Minute),
-			gce.WithMaxEntries(100_000),
+		Track: gce.New[string, types.TrackGetInfo](
+			gce.WithDefaultTTL(time.Hour*12),
+			gce.WithMaxEntries(64_000),
 		),
-		member: gce.New[snowflake.ID, map[snowflake.ID]string](
-			commonShards,
-			commonCleanup,
-			gce.WithDefaultTTL(5*time.Minute),
+		TopAlbums: gce.New[string, types.UserGetTopAlbums](
+			gce.WithDefaultTTL(time.Minute*15),
 			gce.WithMaxEntries(1000),
 		),
+		TopArtists: gce.New[string, types.UserGetTopArtists](
+			gce.WithDefaultTTL(time.Minute*15),
+			gce.WithMaxEntries(1000),
+		),
+		TopTracks: gce.New[string, types.UserGetTopTracks](
+			gce.WithDefaultTTL(time.Minute*15),
+			gce.WithMaxEntries(1000),
+		),
+		Tracks: gce.New[string, types.UserGetRecentTracks](
+			gce.WithDefaultTTL(time.Minute*15),
+			gce.WithMaxEntries(1000),
+		),
+		Plays: gce.New[string, int](
+			gce.WithDefaultTTL(time.Minute*15),
+			gce.WithMaxEntries(50_000),
+		),
 	}
 }
 
-func (c *LastFMCache) Stats() string {
-	stats := "```\n"
-
-	caches := map[string]any{
-		"user cache":   c.user,
-		"track cache":  c.track,
-		"plays cache":  c.plays,
-		"member cache": c.member,
-		"top artists":  c.topArtists,
-		"top albums":   c.topAlbums,
-		"top tracks":   c.topTracks,
+func (c *Cache) Close() {
+	if c.User != nil {
+		c.User.Close()
 	}
-
-	for name, cacheObj := range caches {
-		if cacheObj == nil {
-			continue
-		}
-
-		// lol.
-		var s gce.Stats
-		switch cache := cacheObj.(type) {
-		case *gce.Cache[string, any]:
-			s = cache.Stats()
-		case *gce.Cache[string, int]:
-			s = cache.Stats()
-		case *gce.Cache[snowflake.ID, map[snowflake.ID]string]:
-			s = cache.Stats()
-		case *gce.Cache[string, *lastfm.UserInfoResponse]:
-			s = cache.Stats()
-		case *gce.Cache[string, *lastfm.TrackInfoResponse]:
-			s = cache.Stats()
-		case *gce.Cache[string, *lastfm.TopArtistsResponse]:
-			s = cache.Stats()
-		case *gce.Cache[string, *lastfm.TopAlbumsResponse]:
-			s = cache.Stats()
-		case *gce.Cache[string, *lastfm.TopTracksResponse]:
-			s = cache.Stats()
-		default:
-			continue
-		}
-
-		stats += fmt.Sprintf(
-			"%-15s | hits: %6d | misses: %6d | loads: %6d | evictions: %6d | size: %6d\n",
-			name, s.Hits, s.Misses, s.Loads, s.Evictions, s.CurrentSize,
-		)
+	if c.Members != nil {
+		c.Members.Close()
 	}
-
-	stats += "```"
-	return stats
-}
-
-// Close all caches
-func (c *LastFMCache) Close() {
-	if c.user != nil {
-		c.user.Close()
+	if c.Album != nil {
+		c.Album.Close()
 	}
-	if c.track != nil {
-		c.track.Close()
+	if c.Artist != nil {
+		c.Artist.Close()
 	}
-	if c.topArtists != nil {
-		c.topArtists.Close()
+	if c.Track != nil {
+		c.Track.Close()
 	}
-	if c.topAlbums != nil {
-		c.topAlbums.Close()
+	if c.TopAlbums != nil {
+		c.TopAlbums.Close()
 	}
-	if c.topTracks != nil {
-		c.topTracks.Close()
+	if c.TopArtists != nil {
+		c.TopArtists.Close()
 	}
-	if c.plays != nil {
-		c.plays.Close()
+	if c.TopTracks != nil {
+		c.TopTracks.Close()
 	}
-	if c.member != nil {
-		c.member.Close()
+	if c.Tracks != nil {
+		c.Tracks.Close()
+	}
+	if c.Plays != nil {
+		c.Plays.Close()
 	}
 }

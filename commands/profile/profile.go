@@ -2,16 +2,30 @@ package profile
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 
 	"go.fm/constants"
+	"go.fm/lfm"
+	"go.fm/lfm/types"
 	"go.fm/types/cmd"
 )
 
 type Command struct{}
+type Fav struct {
+	Name      string
+	URL       string
+	PlayCount string
+}
+
+func fetchFav[T any](fetch func() (T, error), extract func(T) Fav) Fav {
+	data, err := fetch()
+	if err != nil {
+		return Fav{"none", "", "0"}
+	}
+	return extract(data)
+}
 
 func (Command) Data() discord.ApplicationCommandCreate {
 	return discord.SlashCommandCreate{
@@ -29,7 +43,6 @@ func (Command) Data() discord.ApplicationCommandCreate {
 
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
-
 	if err := reply.Defer(); err != nil {
 		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
@@ -41,67 +54,82 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return
 	}
 
-	user, err := ctx.LastFM.GetUserInfo(username)
+	user, err := ctx.LastFM.User.GetInfo(lfm.P{"user": username})
 	if err != nil {
 		_ = ctx.Error(e, constants.ErrorUserNotFound)
 		return
 	}
 
-	realName := user.User.Realname
+	realName := user.RealName
 	if realName == "" {
-		realName = user.User.Name
+		realName = user.Name
 	}
 
-	favTrack := "none"
-	favTrackURL := ""
-	topTracks, err := ctx.LastFM.GetTopTracks(username, 1)
-	if err == nil && len(topTracks.TopTracks.Track) > 0 {
-		favTrack = topTracks.TopTracks.Track[0].Name
-		favTrackURL = topTracks.TopTracks.Track[0].URL
-	}
+	favTrack := fetchFav(
+		func() (*types.UserGetTopTracks, error) {
+			return ctx.LastFM.User.GetTopTracks(lfm.P{"user": username, "limit": 1})
+		},
+		func(tt *types.UserGetTopTracks) Fav {
+			if len(tt.Tracks) == 0 {
+				return Fav{"none", "", "0"}
+			}
+			t := tt.Tracks[0]
+			return Fav{t.Name, t.Url, t.PlayCount}
+		},
+	)
 
-	favArtist := "none"
-	favArtistURL := ""
-	topArtists, err := ctx.LastFM.GetTopArtists(username, 1)
-	if err == nil && len(topArtists.TopArtists.Artist) > 0 {
-		favArtist = topArtists.TopArtists.Artist[0].Name
-		favArtistURL = topArtists.TopArtists.Artist[0].URL
-	}
+	favArtist := fetchFav(
+		func() (*types.UserGetTopArtists, error) {
+			return ctx.LastFM.User.GetTopArtists(lfm.P{"user": username, "limit": 1})
+		},
+		func(ta *types.UserGetTopArtists) Fav {
+			if len(ta.Artists) == 0 {
+				return Fav{"none", "", "0"}
+			}
+			a := ta.Artists[0]
+			return Fav{a.Name, a.Url, a.PlayCount}
+		},
+	)
 
-	favAlbum := "none"
-	favAlbumURL := ""
-	topAlbums, err := ctx.LastFM.GetTopAlbums(username, 1)
-	if err == nil && len(topAlbums.TopAlbums.Album) > 0 {
-		favAlbum = topAlbums.TopAlbums.Album[0].Name
-		favAlbumURL = topAlbums.TopAlbums.Album[0].URL
-	}
+	favAlbum := fetchFav(
+		func() (*types.UserGetTopAlbums, error) {
+			return ctx.LastFM.User.GetTopAlbums(lfm.P{"user": username, "limit": 1})
+		},
+		func(ta *types.UserGetTopAlbums) Fav {
+			if len(ta.Albums) == 0 {
+				return Fav{"none", "", "0"}
+			}
+			a := ta.Albums[0]
+			return Fav{a.Name, a.Url, a.PlayCount}
+		},
+	)
 
-	avatar := user.User.Image[len(user.User.Image)-1].Text
+	avatar := ""
+	if len(user.Images) > 0 {
+		avatar = user.Images[len(user.Images)-1].Url
+	}
 	if avatar == "" {
 		avatar = "https://lastfm.freetls.fastly.net/i/u/avatar170s/818148bf682d429dc215c1705eb27b98.png"
-	}
-	if dot := strings.LastIndex(avatar, "."); dot != -1 {
-		avatar = avatar[:dot] + ".gif"
 	}
 
 	component := discord.NewContainer(
 		discord.NewSection(
-			discord.NewTextDisplayf("## [%s](%s)", realName, user.User.URL),
-			discord.NewTextDisplayf("-# *__@%s__*\nsince <t:%s:D>", user.User.Name, user.User.Registered.Unixtime),
-			discord.NewTextDisplayf("**%s** total scrobbles", user.User.Playcount),
+			discord.NewTextDisplayf("## [%s](%s)", realName, user.Url),
+			discord.NewTextDisplayf("-# *__@%s__*\nsince <t:%s:D>", user.Name, user.Registered.Unixtime),
+			discord.NewTextDisplayf("**%s** total scrobbles", user.PlayCount),
 		).WithAccessory(discord.NewThumbnail(avatar)),
 		discord.NewSmallSeparator(),
 		discord.NewTextDisplay(
-			fmt.Sprintf("-# *Favorite album* \\💿\n[**%s**](%s)\n", favAlbum, favAlbumURL)+
-				fmt.Sprintf("-# *Favorite artist* \\🎤\n[**%s**](%s)\n", favArtist, favArtistURL)+
-				fmt.Sprintf("-# *Favorite track* \\🎵\n[**%s**](%s)\n", favTrack, favTrackURL),
+			fmt.Sprintf("-# *Favorite album* \\💿\n[**%s**](%s) — %s plays\n", favAlbum.Name, favAlbum.URL, favAlbum.PlayCount)+
+				fmt.Sprintf("-# *Favorite artist* \\🎤\n[**%s**](%s) — %s plays\n", favArtist.Name, favArtist.URL, favArtist.PlayCount)+
+				fmt.Sprintf("-# *Favorite track* \\🎵\n[**%s**](%s) — %s plays\n", favTrack.Name, favTrack.URL, favTrack.PlayCount),
 		),
 		discord.NewSmallSeparator(),
 		discord.NewTextDisplayf(
 			"\\🎤 **%s** artists\n\\💿 **%s** albums\n\\🎵 **%s** unique tracks",
-			user.User.ArtistCount,
-			user.User.AlbumCount,
-			user.User.TrackCount,
+			user.ArtistCount,
+			user.AlbumCount,
+			user.TrackCount,
 		),
 	).WithAccentColor(0x00ADD8)
 
