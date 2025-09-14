@@ -114,7 +114,7 @@ func generateCacheKey(prefix string, args P) string {
 
 	parts := []string{prefix}
 	for _, k := range keys {
-		if v, ok := args[k]; ok && v != nil && fmt.Sprintf("%v", v) != "" {
+		if v, ok := args[k].(string); ok {
 			parts = append(parts, fmt.Sprintf("%s:%v", k, v))
 		}
 	}
