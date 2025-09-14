@@ -3,17 +3,18 @@ package main
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 	"flag"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
 	dgocache "github.com/disgoorg/disgo/cache"
-	"github.com/disgoorg/snowflake/v2"
-
-	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/gateway"
+	"github.com/disgoorg/snowflake/v2"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/nxtgo/env"
 
 	"go.fm/cache"
@@ -22,10 +23,6 @@ import (
 	"go.fm/lfm"
 	"go.fm/logger"
 	"go.fm/types/cmd"
-
-	_ "embed"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 //go:embed db/sql/schema.sql

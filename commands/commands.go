@@ -14,7 +14,6 @@ import (
 	"go.fm/commands/top"
 	"go.fm/commands/update"
 	"go.fm/commands/who-knows"
-
 	"go.fm/types/cmd"
 )
 

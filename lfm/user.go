@@ -6,6 +6,7 @@ import (
 
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/snowflake/v2"
+
 	"go.fm/db"
 	"go.fm/lfm/types"
 )

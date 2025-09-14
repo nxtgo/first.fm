@@ -37,6 +37,7 @@
           default = pkgs.mkShell {
             packages = with pkgs; [
               go
+              goimports-reviser
               sqlc
             ];
           };
