@@ -3,17 +3,18 @@ package main
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 	"flag"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
 	dgocache "github.com/disgoorg/disgo/cache"
-	"github.com/disgoorg/snowflake/v2"
-
-	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/gateway"
+	"github.com/disgoorg/snowflake/v2"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/nxtgo/env"
 
 	"go.fm/cache"
@@ -22,18 +23,15 @@ import (
 	"go.fm/lfm"
 	"go.fm/logger"
 	"go.fm/types/cmd"
-
-	_ "embed"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 //go:embed db/sql/schema.sql
 var ddl string
 
 var (
-	globalCmds bool
-	dbPath     string
+	globalCmds     bool
+	deleteCommands bool
+	dbPath         string
 )
 
 func init() {
@@ -41,7 +39,8 @@ func init() {
 		logger.Log.Fatalf("failed loading environment: %v", err)
 	}
 
-	flag.BoolVar(&globalCmds, "g", true, "upload global commands to discord")
+	flag.BoolVar(&globalCmds, "global", true, "upload global commands to discord")
+	flag.BoolVar(&globalCmds, "delete", false, "delete commands on exit")
 	flag.StringVar(&dbPath, "db", "database.db", "path to the SQLite database file")
 	flag.Parse()
 }
@@ -78,8 +77,14 @@ func main() {
 
 	if globalCmds {
 		uploadGlobalCommands(*client)
+		if deleteCommands {
+			defer deleteAllGlobalCommands(*client)
+		}
 	} else {
 		uploadGuildCommands(*client)
+		if deleteCommands {
+			defer deleteAllGuildCommands(*client)
+		}
 	}
 
 	waitForShutdown()
@@ -144,6 +149,38 @@ func uploadGuildCommands(client bot.Client) {
 		logger.Log.Fatalf("failed registering global commands: %v", err)
 	}
 	logger.Log.Infof("registered guild slash commands to guild '%s'", guildId.String())
+}
+
+func deleteAllGlobalCommands(client bot.Client) {
+	commands, err := client.Rest.GetGlobalCommands(client.ApplicationID, false)
+	if err != nil {
+		logger.Log.Fatalf("failed fetching global commands: %v", err)
+	}
+
+	for _, cmd := range commands {
+		if err := client.Rest.DeleteGlobalCommand(client.ApplicationID, cmd.ID()); err != nil {
+			logger.Log.Errorf("failed deleting global command '%s': %v", cmd.Name(), err)
+		} else {
+			logger.Log.Infof("deleted global command '%s'", cmd.Name())
+		}
+	}
+}
+
+func deleteAllGuildCommands(client bot.Client) {
+	guildId := snowflake.GetEnv("GUILD_ID")
+
+	commands, err := client.Rest.GetGuildCommands(client.ApplicationID, guildId, false)
+	if err != nil {
+		logger.Log.Fatalf("failed fetching guild commands: %v", err)
+	}
+
+	for _, cmd := range commands {
+		if err := client.Rest.DeleteGuildCommand(client.ApplicationID, guildId, cmd.ID()); err != nil {
+			logger.Log.Errorf("failed deleting guild command '%s': %v", cmd.Name(), err)
+		} else {
+			logger.Log.Infof("deleted guild command '%s'", cmd.Name())
+		}
+	}
 }
 
 func waitForShutdown() {

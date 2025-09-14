@@ -37,6 +37,11 @@
           default = pkgs.mkShell {
             packages = with pkgs; [
               go
+              gotools
+              golangci-lint
+
+              # non-go
+              gnumake
               sqlc
             ];
           };

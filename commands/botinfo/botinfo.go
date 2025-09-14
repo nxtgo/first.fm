@@ -9,6 +9,7 @@ import (
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+
 	"go.fm/constants"
 	"go.fm/types/cmd"
 )
@@ -30,7 +31,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	reply := ctx.Reply(e)
 
 	if err := reply.Defer(); err != nil {
-		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
+		ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
@@ -57,6 +58,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"  - branch: %s\n"+
 			"  - commit: %s\n"+
 			"  - message: %s\n"+
+			"%s"+
 			"```",
 		lastFMUsers,
 		runtime.NumGoroutine(),
@@ -67,6 +69,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		branch,
 		commit,
 		message,
+		ctx.Cache.StatsString(),
 	)
 
 	reply.Content(stats).Edit()

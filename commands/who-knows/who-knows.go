@@ -145,7 +145,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	wg.Wait()
 
 	if len(results) == 0 {
-		_ = ctx.Error(e, constants.ErrorNoListeners)
+		ctx.Error(e, constants.ErrorNoListeners)
 		return
 	}
 
@@ -227,5 +227,5 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		).WithAccessory(discord.NewThumbnail(thumbnail)),
 	).WithAccentColor(color)
 
-	_ = reply.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
+	reply.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
 }

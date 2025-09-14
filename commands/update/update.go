@@ -29,13 +29,13 @@ func (Command) Data() discord.ApplicationCommandCreate {
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
 	if err := reply.Defer(); err != nil {
-		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
+		ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
 	username, err := ctx.GetUser(e)
 	if err != nil {
-		_ = reply.Content(constants.ErrorNotRegistered).Edit()
+		ctx.Error(e, constants.ErrorNotRegistered)
 		return
 	}
 
@@ -65,7 +65,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		"user": username,
 	})
 	if err != nil {
-		_ = reply.Content(constants.ErrorGetUser).Edit()
+		ctx.Error(e, constants.ErrorGetUser)
 		return
 	}
 	ctx.Cache.User.Set(username, *userInfo, 0)
@@ -97,5 +97,5 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		}
 	}
 
-	_ = reply.Content("updated your data with fresh one :)").Edit()
+	reply.Content("updated your data with fresh one :)").Edit()
 }

@@ -44,19 +44,19 @@ func (Command) Data() discord.ApplicationCommandCreate {
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
 	if err := reply.Defer(); err != nil {
-		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
+		ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
 	username, err := ctx.GetUser(e)
 	if err != nil {
-		_ = ctx.Error(e, constants.ErrorNotRegistered)
+		ctx.Error(e, constants.ErrorGetUser)
 		return
 	}
 
 	user, err := ctx.LastFM.User.GetInfo(lfm.P{"user": username})
 	if err != nil {
-		_ = ctx.Error(e, constants.ErrorUserNotFound)
+		ctx.Error(e, constants.ErrorUserNotFound)
 		return
 	}
 

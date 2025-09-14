@@ -52,13 +52,13 @@ func (Command) Data() discord.ApplicationCommandCreate {
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
 	if err := reply.Defer(); err != nil {
-		_ = ctx.Error(e, constants.ErrorAcknowledgeCommand)
+		ctx.Error(e, constants.ErrorAcknowledgeCommand)
 		return
 	}
 
 	user, err := ctx.GetUser(e)
 	if err != nil {
-		_ = ctx.Error(e, err.Error())
+		ctx.Error(e, constants.ErrorGetUser)
 		return
 	}
 
@@ -120,5 +120,5 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		discord.NewTextDisplay(description),
 	)
 
-	_ = reply.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
+	reply.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
 }
