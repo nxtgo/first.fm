@@ -6,6 +6,7 @@ import (
 
 	"go.fm/constants"
 	"go.fm/lfm"
+	"go.fm/lfm/types"
 	"go.fm/types/cmd"
 	"go.fm/utils/image"
 )
@@ -57,7 +58,15 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	}
 
 	thumbnail := track.Images[len(track.Images)-1].Url
-	trackData, _ := ctx.LastFM.Track.GetInfo(lfm.P{"user": user, "track": track.Name, "artist": track.Artist.Name})
+	trackData, err := ctx.LastFM.Track.GetInfo(lfm.P{
+		"user":   user,
+		"track":  track.Name,
+		"artist": track.Artist.Name,
+	})
+	if err != nil || trackData == nil {
+		trackData = &types.TrackGetInfo{UserPlayCount: 0}
+	}
+
 	color, err := image.DominantColor(thumbnail)
 	if err != nil {
 		color = 0x00ADD8
