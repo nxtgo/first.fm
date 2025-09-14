@@ -37,7 +37,11 @@
           default = pkgs.mkShell {
             packages = with pkgs; [
               go
-              goimports-reviser
+              gotools
+              golangci-lint
+
+              # non-go
+              gnumake
               sqlc
             ];
           };
