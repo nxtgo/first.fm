@@ -4,11 +4,11 @@ import (
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 
-	"go.fm/constants"
 	"go.fm/lfm"
 	"go.fm/lfm/types"
+	"go.fm/pkg/constants/errs"
+	"go.fm/pkg/image"
 	"go.fm/types/cmd"
-	"go.fm/utils/image"
 )
 
 type Command struct{}
@@ -30,30 +30,30 @@ func (Command) Data() discord.ApplicationCommandCreate {
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
 	if err := reply.Defer(); err != nil {
-		ctx.Error(e, constants.ErrorAcknowledgeCommand)
+		ctx.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
 	user, err := ctx.GetUser(e)
 	if err != nil {
-		ctx.Error(e, constants.ErrorGetUser)
+		ctx.Error(e, errs.ErrUserNotFound)
 		return
 	}
 
 	data, err := ctx.LastFM.User.GetRecentTracks(lfm.P{"user": user, "limit": 1})
 	if err != nil {
-		ctx.Error(e, constants.ErrorFetchCurrentTrack)
+		ctx.Error(e, errs.ErrCurrentTrackFetch)
 		return
 	}
 
 	if len(data.Tracks) == 0 {
-		ctx.Error(e, constants.ErrorNoTracks)
+		ctx.Error(e, errs.ErrNoTracksFound)
 		return
 	}
 
 	track := data.Tracks[0]
 	if track.NowPlaying != "true" {
-		ctx.Error(e, constants.ErrorNotPlaying)
+		ctx.Error(e, errs.ErrNotListening)
 		return
 	}
 

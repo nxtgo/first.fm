@@ -6,9 +6,9 @@ import (
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 
-	"go.fm/constants"
 	"go.fm/lfm"
 	"go.fm/lfm/types"
+	"go.fm/pkg/constants/errs"
 	"go.fm/types/cmd"
 )
 
@@ -44,19 +44,19 @@ func (Command) Data() discord.ApplicationCommandCreate {
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
 	if err := reply.Defer(); err != nil {
-		ctx.Error(e, constants.ErrorAcknowledgeCommand)
+		ctx.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
 	username, err := ctx.GetUser(e)
 	if err != nil {
-		ctx.Error(e, constants.ErrorGetUser)
+		ctx.Error(e, errs.ErrUserNotFound)
 		return
 	}
 
 	user, err := ctx.LastFM.User.GetInfoWithPrefetch(lfm.P{"user": username})
 	if err != nil {
-		ctx.Error(e, constants.ErrorUserNotFound)
+		ctx.Error(e, errs.ErrUserNotFound)
 		return
 	}
 

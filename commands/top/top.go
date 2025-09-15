@@ -6,8 +6,8 @@ import (
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 
-	"go.fm/constants"
 	"go.fm/lfm"
+	"go.fm/pkg/constants/errs"
 	"go.fm/types/cmd"
 )
 
@@ -52,13 +52,13 @@ func (Command) Data() discord.ApplicationCommandCreate {
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
 	if err := reply.Defer(); err != nil {
-		ctx.Error(e, constants.ErrorAcknowledgeCommand)
+		ctx.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
 	user, err := ctx.GetUser(e)
 	if err != nil {
-		ctx.Error(e, constants.ErrorGetUser)
+		ctx.Error(e, errs.ErrUserNotFound)
 		return
 	}
 
@@ -77,7 +77,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"limit": limit,
 		})
 		if err != nil {
-			_ = ctx.Error(e, err.Error())
+			_ = ctx.Error(e, err)
 			return
 		}
 		for i, a := range data.Artists {
@@ -90,7 +90,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"limit": limit,
 		})
 		if err != nil {
-			_ = ctx.Error(e, err.Error())
+			_ = ctx.Error(e, err)
 			return
 		}
 		for i, t := range data.Tracks {
@@ -103,7 +103,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"limit": limit,
 		})
 		if err != nil {
-			_ = ctx.Error(e, err.Error())
+			_ = ctx.Error(e, err)
 			return
 		}
 		for i, a := range data.Albums {
@@ -112,7 +112,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	}
 
 	if description == "" {
-		description = constants.ErrorNoTracks
+		description = errs.ErrNoTracksFound.Error()
 	}
 
 	component := discord.NewContainer(

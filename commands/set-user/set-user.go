@@ -3,16 +3,15 @@ package setuser
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"github.com/nxtgo/zlog"
 
-	"go.fm/constants"
 	"go.fm/db"
 	"go.fm/lfm"
 	"go.fm/logger"
+	"go.fm/pkg/constants/errs"
 	"go.fm/types/cmd"
 )
 
@@ -39,7 +38,7 @@ func (Command) Data() discord.ApplicationCommandCreate {
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
 	if err := reply.Defer(); err != nil {
-		ctx.Error(e, constants.ErrorAcknowledgeCommand)
+		ctx.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
@@ -48,18 +47,18 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	_, err := ctx.LastFM.User.GetInfo(lfm.P{"user": username})
 	if err != nil {
-		ctx.Error(e, constants.ErrorUserNotFound)
+		ctx.Error(e, errs.ErrUserNotFound)
 		return
 	}
 
 	existing, err := ctx.Database.GetUserByUsername(ctx.Context, username)
 	if err == nil {
 		if existing.DiscordID != discordID {
-			ctx.Error(e, constants.ErrorAlreadyLinked)
+			ctx.Error(e, errs.ErrUsernameAlreadyUsed)
 			return
 		}
 		if existing.LastfmUsername == username {
-			ctx.Error(e, fmt.Sprintf(constants.ErrorUsernameAlreadySet, username))
+			ctx.Error(e, errs.ErrUsernameAlreadySet(username))
 			return
 		}
 	}
@@ -70,7 +69,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			LastfmUsername: username,
 		}); dbErr != nil {
 			logger.Log.Errorw("failed to upsert user", zlog.F{"gid": e.GuildID().String(), "uid": discordID}, dbErr)
-			ctx.Error(e, constants.ErrorSetUsername)
+			ctx.Error(e, errs.ErrSetUsername)
 			return
 		}
 

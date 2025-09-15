@@ -14,11 +14,11 @@ import (
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/snowflake/v2"
 
-	"go.fm/constants"
 	"go.fm/lfm"
 	"go.fm/lfm/types"
+	"go.fm/pkg/constants/errs"
+	"go.fm/pkg/image"
 	"go.fm/types/cmd"
-	"go.fm/utils/image"
 )
 
 type Command struct{}
@@ -84,7 +84,7 @@ func (Command) Data() discord.ApplicationCommandCreate {
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
 	if err := reply.Defer(); err != nil {
-		ctx.Error(e, constants.ErrorAcknowledgeCommand)
+		ctx.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
@@ -92,19 +92,19 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	queryInfo, err := resolveQueryInfo(options, e, ctx)
 	if err != nil {
-		ctx.Error(e, err.Error())
+		ctx.Error(e, err)
 		return
 	}
 
 	users, err := getUserList(options.IsGlobal, e, ctx)
 	if err != nil {
-		ctx.Error(e, constants.ErrorUnexpected)
+		ctx.Error(e, errs.ErrUnexpected)
 		return
 	}
 
 	results := fetchPlayCounts(queryInfo, users, options.Limit, ctx)
 	if len(results) == 0 {
-		ctx.Error(e, constants.ErrorNoListeners)
+		ctx.Error(e, errs.ErrNoListeners)
 		return
 	}
 
@@ -173,12 +173,12 @@ func resolveQueryInfo(options CommandOptions, e *events.ApplicationCommandIntera
 func getCurrentTrack(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) (*types.UserGetRecentTracks, error) {
 	currentUser, err := ctx.Database.GetUser(ctx.Context, e.Member().User.ID.String())
 	if err != nil {
-		return nil, fmt.Errorf(constants.ErrorGetUser)
+		return nil, errs.ErrUserNotFound
 	}
 
 	tracks, err := ctx.LastFM.User.GetRecentTracks(lfm.P{"user": currentUser, "limit": 1})
 	if err != nil || len(tracks.Tracks) == 0 || tracks.Tracks[0].NowPlaying != "true" {
-		return nil, fmt.Errorf(constants.ErrorFetchCurrentTrack)
+		return nil, errs.ErrCurrentTrackFetch
 	}
 
 	return tracks, nil

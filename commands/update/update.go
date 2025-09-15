@@ -5,8 +5,8 @@ import (
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/snowflake/v2"
 
-	"go.fm/constants"
 	"go.fm/lfm"
+	"go.fm/pkg/constants/errs"
 	"go.fm/types/cmd"
 )
 
@@ -29,13 +29,13 @@ func (Command) Data() discord.ApplicationCommandCreate {
 func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
 	reply := ctx.Reply(e)
 	if err := reply.Defer(); err != nil {
-		ctx.Error(e, constants.ErrorAcknowledgeCommand)
+		ctx.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
 	username, err := ctx.GetUser(e)
 	if err != nil {
-		ctx.Error(e, constants.ErrorNotRegistered)
+		ctx.Error(e, errs.ErrUserNotFound)
 		return
 	}
 
@@ -65,7 +65,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		"user": username,
 	})
 	if err != nil {
-		ctx.Error(e, constants.ErrorGetUser)
+		ctx.Error(e, errs.ErrUserNotFound)
 		return
 	}
 	ctx.Cache.User.Set(username, *userInfo, 0)
