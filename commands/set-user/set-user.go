@@ -12,7 +12,8 @@ import (
 	"go.fm/lfm"
 	"go.fm/logger"
 	"go.fm/pkg/constants/errs"
-	"go.fm/types/cmd"
+	"go.fm/pkg/ctx"
+	"go.fm/pkg/discord/reply"
 )
 
 type Command struct{}
@@ -35,10 +36,10 @@ func (Command) Data() discord.ApplicationCommandCreate {
 	}
 }
 
-func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	reply := ctx.Reply(e)
-	if err := reply.Defer(); err != nil {
-		ctx.Error(e, errs.ErrCommandDeferFailed)
+func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) {
+	r := reply.New(e)
+	if err := r.Defer(); err != nil {
+		reply.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
@@ -47,18 +48,18 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	_, err := ctx.LastFM.User.GetInfo(lfm.P{"user": username})
 	if err != nil {
-		ctx.Error(e, errs.ErrUserNotFound)
+		reply.Error(e, errs.ErrUserNotFound)
 		return
 	}
 
 	existing, err := ctx.Database.GetUserByUsername(ctx.Context, username)
 	if err == nil {
 		if existing.DiscordID != discordID {
-			ctx.Error(e, errs.ErrUsernameAlreadyUsed)
+			reply.Error(e, errs.ErrUsernameAlreadyUsed)
 			return
 		}
 		if existing.LastfmUsername == username {
-			ctx.Error(e, errs.ErrUsernameAlreadySet(username))
+			reply.Error(e, errs.ErrUsernameAlreadySet(username))
 			return
 		}
 	}
@@ -69,10 +70,10 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			LastfmUsername: username,
 		}); dbErr != nil {
 			logger.Log.Errorw("failed to upsert user", zlog.F{"gid": e.GuildID().String(), "uid": discordID}, dbErr)
-			ctx.Error(e, errs.ErrSetUsername)
+			reply.Error(e, errs.ErrSetUsername)
 			return
 		}
 
-		reply.Content("your last.fm username has been set to **%s**", username).Edit()
+		r.Content("your last.fm username has been set to **%s**", username).Edit()
 	}
 }

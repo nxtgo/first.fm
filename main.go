@@ -22,7 +22,7 @@ import (
 	"go.fm/db"
 	"go.fm/lfm"
 	"go.fm/logger"
-	"go.fm/types/cmd"
+	gofmCtx "go.fm/pkg/ctx"
 )
 
 //go:embed db/sql/schema.sql
@@ -60,7 +60,7 @@ func main() {
 	closeConnection, database := initDatabase(ctx, dbPath)
 	defer closeConnection()
 
-	cmdCtx := cmd.CommandContext{
+	cmdCtx := gofmCtx.CommandContext{
 		LastFM:   lfm,
 		Database: database,
 		Cache:    lfmCache,

@@ -7,7 +7,9 @@ import (
 
 	"go.fm/lfm"
 	"go.fm/pkg/constants/errs"
-	"go.fm/types/cmd"
+	"go.fm/pkg/constants/opts"
+	"go.fm/pkg/ctx"
+	"go.fm/pkg/discord/reply"
 )
 
 type Command struct{}
@@ -21,21 +23,21 @@ func (Command) Data() discord.ApplicationCommandCreate {
 			discord.ApplicationIntegrationTypeUserInstall,
 		},
 		Options: []discord.ApplicationCommandOption{
-			cmd.UserOption,
+			opts.UserOption,
 		},
 	}
 }
 
-func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	reply := ctx.Reply(e)
-	if err := reply.Defer(); err != nil {
-		ctx.Error(e, errs.ErrCommandDeferFailed)
+func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) {
+	r := reply.New(e)
+	if err := r.Defer(); err != nil {
+		reply.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
 	username, err := ctx.GetUser(e)
 	if err != nil {
-		ctx.Error(e, errs.ErrUserNotFound)
+		reply.Error(e, errs.ErrUserNotFound)
 		return
 	}
 
@@ -65,7 +67,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		"user": username,
 	})
 	if err != nil {
-		ctx.Error(e, errs.ErrUserNotFound)
+		reply.Error(e, errs.ErrUserNotFound)
 		return
 	}
 	ctx.Cache.User.Set(username, *userInfo, 0)
@@ -97,5 +99,5 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		}
 	}
 
-	reply.Content("updated your data with fresh one :)").Edit()
+	r.Content("updated your data with fresh one :)").Edit()
 }

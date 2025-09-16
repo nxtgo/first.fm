@@ -6,6 +6,54 @@ import (
 	"unicode/utf8"
 )
 
+func Table(headers []string, rows [][]string) string {
+	colWidths := make([]int, len(headers))
+	for i, h := range headers {
+		colWidths[i] = len(h)
+	}
+	for _, row := range rows {
+		for i, cell := range row {
+			if len(cell) > colWidths[i] {
+				colWidths[i] = len(cell)
+			}
+		}
+	}
+
+	pad := func(s string, width int) string {
+		return s + strings.Repeat(" ", width-len(s))
+	}
+
+	var b strings.Builder
+
+	for i, h := range headers {
+		if i > 0 {
+			b.WriteString(" | ")
+		}
+		b.WriteString(pad(h, colWidths[i]))
+	}
+	b.WriteString("\n")
+
+	for i := range headers {
+		if i > 0 {
+			b.WriteString(" | ")
+		}
+		b.WriteString(strings.Repeat("-", colWidths[i]))
+	}
+	b.WriteString("\n")
+
+	for _, row := range rows {
+		for i, cell := range row {
+			if i > 0 {
+				b.WriteString(" | ")
+			}
+			b.WriteString(pad(cell, colWidths[i]))
+		}
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
 type TimestampStyle int
 
 const (

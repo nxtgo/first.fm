@@ -17,8 +17,9 @@ import (
 	"go.fm/lfm"
 	"go.fm/lfm/types"
 	"go.fm/pkg/constants/errs"
+	"go.fm/pkg/ctx"
+	"go.fm/pkg/discord/reply"
 	"go.fm/pkg/image"
-	"go.fm/types/cmd"
 )
 
 type Command struct{}
@@ -81,10 +82,10 @@ func (Command) Data() discord.ApplicationCommandCreate {
 	}
 }
 
-func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	reply := ctx.Reply(e)
-	if err := reply.Defer(); err != nil {
-		ctx.Error(e, errs.ErrCommandDeferFailed)
+func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) {
+	r := reply.New(e)
+	if err := r.Defer(); err != nil {
+		reply.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
@@ -92,19 +93,19 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 
 	queryInfo, err := resolveQueryInfo(options, e, ctx)
 	if err != nil {
-		ctx.Error(e, err)
+		reply.Error(e, err)
 		return
 	}
 
 	users, err := getUserList(options.IsGlobal, e, ctx)
 	if err != nil {
-		ctx.Error(e, errs.ErrUnexpected)
+		reply.Error(e, errs.ErrUnexpected)
 		return
 	}
 
 	results := fetchPlayCounts(queryInfo, users, options.Limit, ctx)
 	if len(results) == 0 {
-		ctx.Error(e, errs.ErrNoListeners)
+		reply.Error(e, errs.ErrNoListeners)
 		return
 	}
 
@@ -112,7 +113,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		return results[i].PlayCount > results[j].PlayCount
 	})
 
-	sendWhoKnowsResponse(e, reply, queryInfo, results, options)
+	sendWhoKnowsResponse(e, r, queryInfo, results, options)
 }
 
 type CommandOptions struct {
@@ -141,7 +142,7 @@ func parseCommandOptions(e *events.ApplicationCommandInteractionCreate) CommandO
 	}
 }
 
-func resolveQueryInfo(options CommandOptions, e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) (*QueryInfo, error) {
+func resolveQueryInfo(options CommandOptions, e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) (*QueryInfo, error) {
 	queryInfo := &QueryInfo{Type: options.Type}
 
 	if options.Name != "" {
@@ -170,7 +171,7 @@ func resolveQueryInfo(options CommandOptions, e *events.ApplicationCommandIntera
 	return queryInfo, nil
 }
 
-func getCurrentTrack(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) (*types.UserGetRecentTracks, error) {
+func getCurrentTrack(e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) (*types.UserGetRecentTracks, error) {
 	currentUser, err := ctx.Database.GetUser(ctx.Context, e.Member().User.ID.String())
 	if err != nil {
 		return nil, errs.ErrUserNotFound
@@ -184,7 +185,7 @@ func getCurrentTrack(e *events.ApplicationCommandInteractionCreate, ctx cmd.Comm
 	return tracks, nil
 }
 
-func enrichQueryInfo(queryInfo *QueryInfo, ctx cmd.CommandContext) {
+func enrichQueryInfo(queryInfo *QueryInfo, ctx ctx.CommandContext) {
 	queryInfo.BetterName = queryInfo.Name
 	queryInfo.Thumbnail = "https://lastfm.freetls.fastly.net/i/u/avatar170s/818148bf682d429dc215c1705eb27b98.png"
 
@@ -229,14 +230,14 @@ func enrichQueryInfo(queryInfo *QueryInfo, ctx cmd.CommandContext) {
 	}
 }
 
-func getUserList(isGlobal bool, e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) (map[snowflake.ID]string, error) {
+func getUserList(isGlobal bool, e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) (map[snowflake.ID]string, error) {
 	if isGlobal {
 		return getAllRegisteredUsers(ctx)
 	}
 	return ctx.LastFM.User.GetUsersByGuild(ctx.Context, e, ctx.Database)
 }
 
-func getAllRegisteredUsers(ctx cmd.CommandContext) (map[snowflake.ID]string, error) {
+func getAllRegisteredUsers(ctx ctx.CommandContext) (map[snowflake.ID]string, error) {
 	if cached, ok := ctx.Cache.Members.Get(snowflake.ID(0)); ok {
 		return cached, nil
 	}
@@ -258,7 +259,7 @@ func getAllRegisteredUsers(ctx cmd.CommandContext) (map[snowflake.ID]string, err
 	return result, nil
 }
 
-func fetchPlayCounts(queryInfo *QueryInfo, users map[snowflake.ID]string, maxWorkers int, ctx cmd.CommandContext) []PlayResult {
+func fetchPlayCounts(queryInfo *QueryInfo, users map[snowflake.ID]string, maxWorkers int, ctx ctx.CommandContext) []PlayResult {
 	if len(users) == 0 {
 		return nil
 	}
@@ -311,7 +312,7 @@ done:
 	return results
 }
 
-func fetchUserPlayCount(queryInfo *QueryInfo, username string, ctx cmd.CommandContext) int {
+func fetchUserPlayCount(queryInfo *QueryInfo, username string, ctx ctx.CommandContext) int {
 	params := lfm.P{
 		"user": username,
 		"name": queryInfo.Name,
@@ -329,7 +330,7 @@ func fetchUserPlayCount(queryInfo *QueryInfo, username string, ctx cmd.CommandCo
 	return count
 }
 
-func sendWhoKnowsResponse(e *events.ApplicationCommandInteractionCreate, reply *cmd.ResponseBuilder, queryInfo *QueryInfo, results []PlayResult, options CommandOptions) {
+func sendWhoKnowsResponse(e *events.ApplicationCommandInteractionCreate, reply *reply.ResponseBuilder, queryInfo *QueryInfo, results []PlayResult, options CommandOptions) {
 	scope := "in this server"
 	if options.IsGlobal {
 		scope = "globally"

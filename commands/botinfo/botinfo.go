@@ -11,7 +11,9 @@ import (
 	"github.com/disgoorg/disgo/events"
 
 	"go.fm/pkg/constants/errs"
-	"go.fm/types/cmd"
+	"go.fm/pkg/ctx"
+	"go.fm/pkg/discord/markdown"
+	"go.fm/pkg/discord/reply"
 )
 
 type Command struct{}
@@ -27,11 +29,11 @@ func (Command) Data() discord.ApplicationCommandCreate {
 	}
 }
 
-func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	reply := ctx.Reply(e)
+func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) {
+	r := reply.New(e)
 
-	if err := reply.Defer(); err != nil {
-		ctx.Error(e, errs.ErrCommandDeferFailed)
+	if err := r.Defer(); err != nil {
+		reply.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
@@ -44,35 +46,39 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 	}
 
 	branch, commit, message := getGitInfo()
+	cacheStats := ctx.Cache.Stats()
 
-	stats := fmt.Sprintf(
-		"```\n"+
-			"registered last.fm users: %d\n"+
-			"goroutines: %d\n"+
-			"memory Usage:\n"+
-			"  - alloc: %.2f MB\n"+
-			"  - total: %.2f MB\n"+
-			"  - sys  : %.2f MB\n"+
-			"uptime: %s\n"+
-			"git:\n"+
-			"  - branch : %s\n"+
-			"  - commit : %s\n"+
-			"  - message: %s\n"+
-			"%s"+
-			"```",
-		lastFMUsers,
-		runtime.NumGoroutine(),
-		float64(m.Alloc)/1024/1024,
-		float64(m.TotalAlloc)/1024/1024,
-		float64(m.Sys)/1024/1024,
-		time.Since(ctx.Start).Truncate(time.Second),
-		branch,
-		commit,
-		message,
-		ctx.Cache.StatsString(),
-	)
+	var sb strings.Builder
 
-	reply.Content(stats).Edit()
+	fmt.Fprintf(&sb, "registered last.fm users: %d\n", lastFMUsers)
+	fmt.Fprintf(&sb, "goroutines: %d\n", runtime.NumGoroutine())
+	fmt.Fprintf(&sb, "memory usage:\n")
+	fmt.Fprintf(&sb, "  - alloc: %.2f MB\n", float64(m.Alloc)/1024/1024)
+	fmt.Fprintf(&sb, "  - total: %.2f MB\n", float64(m.TotalAlloc)/1024/1024)
+	fmt.Fprintf(&sb, "  - sys  : %.2f MB\n", float64(m.Sys)/1024/1024)
+	fmt.Fprintf(&sb, "uptime: %s\n", time.Since(ctx.Start).Truncate(time.Second))
+	fmt.Fprintf(&sb, "git:\n")
+	fmt.Fprintf(&sb, "  - branch : %s\n", branch)
+	fmt.Fprintf(&sb, "  - commit : %s\n", commit)
+	fmt.Fprintf(&sb, "  - message: %s\n", message)
+
+	headers := []string{"cache", "hits", "misses", "loads", "evicts", "size"}
+	rows := make([][]string, len(cacheStats))
+	for i, cs := range cacheStats {
+		rows[i] = []string{
+			cs.Name,
+			fmt.Sprintf("%d", cs.Stats.Hits),
+			fmt.Sprintf("%d", cs.Stats.Misses),
+			fmt.Sprintf("%d", cs.Stats.Loads),
+			fmt.Sprintf("%d", cs.Stats.Evictions),
+			fmt.Sprintf("%d", cs.Stats.CurrentSize),
+		}
+	}
+
+	cacheTable := markdown.MD(markdown.Table(headers, rows)).CodeBlock("ts")
+	botStats := markdown.MD(sb.String()).CodeBlock("yaml")
+
+	r.Content("## bot stats\n%s\n## cache stats\n%s", botStats, cacheTable).Edit()
 }
 
 func getGitInfo() (branch, commit, message string) {

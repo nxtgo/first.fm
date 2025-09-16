@@ -8,7 +8,9 @@ import (
 
 	"go.fm/lfm"
 	"go.fm/pkg/constants/errs"
-	"go.fm/types/cmd"
+	"go.fm/pkg/constants/opts"
+	"go.fm/pkg/ctx"
+	"go.fm/pkg/discord/reply"
 )
 
 type Command struct{}
@@ -44,21 +46,21 @@ func (Command) Data() discord.ApplicationCommandCreate {
 				MinValue:    &minLimit,
 				MaxValue:    &maxLimit,
 			},
-			cmd.UserOption,
+			opts.UserOption,
 		},
 	}
 }
 
-func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	reply := ctx.Reply(e)
-	if err := reply.Defer(); err != nil {
-		ctx.Error(e, errs.ErrCommandDeferFailed)
+func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) {
+	r := reply.New(e)
+	if err := r.Defer(); err != nil {
+		reply.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
 	user, err := ctx.GetUser(e)
 	if err != nil {
-		ctx.Error(e, errs.ErrUserNotFound)
+		reply.Error(e, errs.ErrUserNotFound)
 		return
 	}
 
@@ -77,7 +79,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"limit": limit,
 		})
 		if err != nil {
-			_ = ctx.Error(e, err)
+			_ = reply.Error(e, err)
 			return
 		}
 		for i, a := range data.Artists {
@@ -90,7 +92,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"limit": limit,
 		})
 		if err != nil {
-			_ = ctx.Error(e, err)
+			_ = reply.Error(e, err)
 			return
 		}
 		for i, t := range data.Tracks {
@@ -103,7 +105,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"limit": limit,
 		})
 		if err != nil {
-			_ = ctx.Error(e, err)
+			_ = reply.Error(e, err)
 			return
 		}
 		for i, a := range data.Albums {
@@ -120,5 +122,5 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		discord.NewTextDisplay(description),
 	)
 
-	reply.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
+	r.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
 }
