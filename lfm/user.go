@@ -3,10 +3,10 @@ package lfm
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/snowflake/v2"
-
 	"go.fm/db"
 	"go.fm/lfm/types"
 )
@@ -15,73 +15,169 @@ type userApi struct {
 	api *LastFMApi
 }
 
+func (u *userApi) GetInfo(args P) (*types.UserGetInfo, error) {
+	username := args["user"].(string)
+
+	// Check if we have cached data
+	if user, ok := u.api.cache.User.Get(username); ok {
+		return &user, nil
+	}
+
+	req := u.api.baseRequest("user.getinfo", args)
+	data, err := req.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	var result types.UserGetInfo
+	if err := decodeResponse(data, &result); err != nil {
+		return nil, err
+	}
+
+	u.api.cache.User.Set(username, result, 0)
+
+	return &result, nil
+}
+
+func (u *userApi) GetRecentTracks(args P) (*types.UserGetRecentTracks, error) {
+	req := u.api.baseRequest("user.getrecenttracks", args)
+	data, err := req.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	var result types.UserGetRecentTracks
+	if err := decodeResponse(data, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (u *userApi) GetTopArtists(args P) (*types.UserGetTopArtists, error) {
+	key := generateCacheKey("topartists", args)
+
+	if artists, ok := u.api.cache.TopArtists.Get(key); ok {
+		return &artists, nil
+	}
+
+	req := u.api.baseRequest("user.gettopartists", args)
+	data, err := req.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	var result types.UserGetTopArtists
+	if err := decodeResponse(data, &result); err != nil {
+		return nil, err
+	}
+
+	ttl := u.getTopDataTTL(args)
+	u.api.cache.TopArtists.Set(key, result, ttl)
+
+	return &result, nil
+}
+
+func (u *userApi) GetTopAlbums(args P) (*types.UserGetTopAlbums, error) {
+	key := generateCacheKey("topalbums", args)
+
+	if albums, ok := u.api.cache.TopAlbums.Get(key); ok {
+		return &albums, nil
+	}
+
+	req := u.api.baseRequest("user.gettopalbums", args)
+	data, err := req.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	var result types.UserGetTopAlbums
+	if err := decodeResponse(data, &result); err != nil {
+		return nil, err
+	}
+
+	ttl := u.getTopDataTTL(args)
+	u.api.cache.TopAlbums.Set(key, result, ttl)
+
+	return &result, nil
+}
+
+func (u *userApi) GetTopTracks(args P) (*types.UserGetTopTracks, error) {
+	key := generateCacheKey("toptracks", args)
+
+	if tracks, ok := u.api.cache.TopTracks.Get(key); ok {
+		return &tracks, nil
+	}
+
+	req := u.api.baseRequest("user.gettoptracks", args)
+	data, err := req.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	var result types.UserGetTopTracks
+	if err := decodeResponse(data, &result); err != nil {
+		return nil, err
+	}
+
+	ttl := u.getTopDataTTL(args)
+	u.api.cache.TopTracks.Set(key, result, ttl)
+
+	return &result, nil
+}
+
 func (u *userApi) GetPlays(args P) (int, error) {
+	key := generateCacheKey("plays", args)
+
+	if cached, ok := u.api.cache.Plays.Get(key); ok {
+		return cached, nil
+	}
+
 	username := args["user"].(string)
 	queryType := args["type"].(string)
 	queryName := args["name"].(string)
 
-	cacheKey := fmt.Sprintf("%s:%s", username, queryName)
-	if cached, ok := u.api.cache.Plays.Get(cacheKey); ok {
-		return cached, nil
-	}
-
 	var playCount int
-	var err error
+	var cacheTTL time.Duration
 
 	switch queryType {
 	case "artist":
-		var artist *types.ArtistGetInfo
-		if username != "" {
-			artist, err = u.api.Artist.GetInfo(P{"artist": queryName, "username": username})
-		} else {
-			artist, err = u.api.Artist.GetInfo(P{"artist": queryName})
-		}
+		artist, err := u.api.Artist.GetInfo(P{"artist": queryName, "username": username})
 		if err != nil {
 			return 0, err
 		}
-		if username != "" {
-			playCount = artist.Stats.UserPlayCount
-		} else {
-			fmt.Sscanf(fmt.Sprint(artist.Stats.PlayCount), "%d", &playCount)
-		}
+		playCount = artist.Stats.UserPlayCount
+		cacheTTL = 10 * time.Minute
 
 	case "album":
-		var album *types.AlbumGetInfo
-		if username != "" {
-			album, err = u.api.Album.GetInfo(P{"artist": args["artist"], "album": queryName, "username": username})
-		} else {
-			album, err = u.api.Album.GetInfo(P{"artist": args["artist"], "album": queryName})
-		}
+		album, err := u.api.Album.GetInfo(P{
+			"artist":   args["artist"],
+			"album":    queryName,
+			"username": username,
+		})
 		if err != nil {
 			return 0, err
 		}
-		if username != "" {
-			playCount = album.UserPlayCount
-		} else {
-			fmt.Sscanf(fmt.Sprint(album.PlayCount), "%d", &playCount)
-		}
+		playCount = album.UserPlayCount
+		cacheTTL = 15 * time.Minute
 
 	case "track":
-		var track *types.TrackGetInfo
-		if username != "" {
-			track, err = u.api.Track.GetInfo(P{"artist": args["artist"], "track": queryName, "username": username})
-		} else {
-			track, err = u.api.Track.GetInfo(P{"artist": args["artist"], "track": queryName})
-		}
+		track, err := u.api.Track.GetInfo(P{
+			"artist":   args["artist"],
+			"track":    queryName,
+			"username": username,
+		})
 		if err != nil {
 			return 0, err
 		}
-		if username != "" {
-			playCount = track.UserPlayCount
-		} else {
-			fmt.Sscanf(fmt.Sprint(track.PlayCount), "%d", &playCount)
-		}
+		playCount = track.UserPlayCount
+		cacheTTL = 5 * time.Minute
 
 	default:
 		return 0, fmt.Errorf("unknown query type: %s", queryType)
 	}
 
-	u.api.cache.Plays.Set(cacheKey, playCount, 0)
+	u.api.cache.Plays.Set(key, playCount, cacheTTL)
 	return playCount, nil
 }
 
@@ -115,116 +211,80 @@ func (u *userApi) GetUsersByGuild(
 		}
 	}
 
-	u.api.cache.Members.Set(guildID, users, 0)
+	u.api.cache.Members.Set(guildID, users, 10*time.Minute)
 
 	return users, nil
 }
 
-// user.getInfo
-func (u *userApi) GetInfo(args P) (*types.UserGetInfo, error) {
-	username := args["user"].(string)
-	if user, ok := u.api.cache.User.Get(username); ok {
-		return &user, nil
-	}
-	req := u.api.baseRequest("user.getinfo", args)
-
-	data, err := req.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
-	var result types.UserGetInfo
-	if err := decodeResponse(data, &result); err != nil {
-		return nil, err
-	}
-
-	u.api.cache.User.Set(username, result, 0)
-
-	return &result, nil
-}
-
-// user.getRecentTracks
-func (u *userApi) GetRecentTracks(args P) (*types.UserGetRecentTracks, error) {
-	req := u.api.baseRequest("user.getrecenttracks", args)
-	data, err := req.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
-	var result types.UserGetRecentTracks
-	if err := decodeResponse(data, &result); err != nil {
-		return nil, err
-	}
-
-	return &result, nil
-}
-
-// user.getTopAlbums
-func (u *userApi) GetTopAlbums(args P) (*types.UserGetTopAlbums, error) {
+func (u *userApi) GetInfoWithPrefetch(args P) (*types.UserGetInfo, error) {
 	username := args["user"].(string)
 
-	if albums, ok := u.api.cache.TopAlbums.Get(username); ok {
-		return &albums, nil
-	}
-
-	req := u.api.baseRequest("user.gettopalbums", args)
-	data, err := req.Bytes()
+	userInfo, err := u.GetInfo(args)
 	if err != nil {
 		return nil, err
 	}
 
-	var result types.UserGetTopAlbums
-	if err := decodeResponse(data, &result); err != nil {
-		return nil, err
-	}
+	go u.PrefetchUserData(username)
 
-	u.api.cache.TopAlbums.Set(username, result, 0)
-	return &result, nil
+	return userInfo, nil
 }
 
-// user.getTopArtists
-func (u *userApi) GetTopArtists(args P) (*types.UserGetTopArtists, error) {
-	username := args["user"].(string)
-
-	if artists, ok := u.api.cache.TopArtists.Get(username); ok {
-		return &artists, nil
+func (u *userApi) PrefetchUserData(username string) {
+	if _, ok := u.api.cache.TopArtists.Get(generateCacheKey("topartists", P{"user": username})); !ok {
+		u.GetTopArtists(P{"user": username, "limit": 10})
 	}
 
-	req := u.api.baseRequest("user.gettopartists", args)
-	data, err := req.Bytes()
-	if err != nil {
-		return nil, err
+	if _, ok := u.api.cache.TopAlbums.Get(generateCacheKey("topalbums", P{"user": username})); !ok {
+		u.GetTopAlbums(P{"user": username, "limit": 10})
 	}
 
-	var result types.UserGetTopArtists
-	if err := decodeResponse(data, &result); err != nil {
-		return nil, err
+	if _, ok := u.api.cache.TopTracks.Get(generateCacheKey("toptracks", P{"user": username})); !ok {
+		u.GetTopTracks(P{"user": username, "limit": 10})
 	}
-
-	u.api.cache.TopArtists.Set(username, result, 0)
-	return &result, nil
 }
 
-// user.getTopTracks
-func (u *userApi) GetTopTracks(args P) (*types.UserGetTopTracks, error) {
-	username := args["user"].(string)
+func (u *userApi) InvalidateUserCache(username string) {
+	periods := []string{"7day", "1month", "3month", "6month", "12month", "overall"}
 
-	if tracks, ok := u.api.cache.TopTracks.Get(username); ok {
-		return &tracks, nil
+	for _, period := range periods {
+		key := generateCacheKey("topartists", P{"user": username, "period": period})
+		u.api.cache.TopArtists.Delete(key)
+
+		key = generateCacheKey("topalbums", P{"user": username, "period": period})
+		u.api.cache.TopAlbums.Delete(key)
+
+		key = generateCacheKey("toptracks", P{"user": username, "period": period})
+		u.api.cache.TopTracks.Delete(key)
 	}
 
-	req := u.api.baseRequest("user.gettoptracks", args)
-	data, err := req.Bytes()
-	if err != nil {
-		return nil, err
+	defaultKeys := []P{
+		{"user": username},
+		{"user": username, "limit": 10},
+		{"user": username, "limit": 50},
 	}
 
-	var result types.UserGetTopTracks
-	if err := decodeResponse(data, &result); err != nil {
-		return nil, err
+	for _, args := range defaultKeys {
+		u.api.cache.TopArtists.Delete(generateCacheKey("topartists", args))
+		u.api.cache.TopAlbums.Delete(generateCacheKey("topalbums", args))
+		u.api.cache.TopTracks.Delete(generateCacheKey("toptracks", args))
 	}
 
-	u.api.cache.TopTracks.Set(username, result, 0)
+	u.api.cache.User.Delete(username)
+}
 
-	return &result, nil
+func (u *userApi) getTopDataTTL(args P) time.Duration {
+	if period, ok := args["period"].(string); ok {
+		switch period {
+		case "7day":
+			return 30 * time.Minute
+		case "1month":
+			return 2 * time.Hour
+		case "3month", "6month":
+			return 6 * time.Hour
+		case "12month", "overall":
+			return 12 * time.Hour
+		}
+	}
+
+	return 15 * time.Minute
 }

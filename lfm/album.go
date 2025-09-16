@@ -1,7 +1,7 @@
 package lfm
 
 import (
-	"fmt"
+	"time"
 
 	"go.fm/lfm/types"
 )
@@ -10,16 +10,8 @@ type albumApi struct {
 	api *LastFMApi
 }
 
-// album.getInfo
 func (a *albumApi) GetInfo(args P) (*types.AlbumGetInfo, error) {
-	var key string
-	if mbid, ok := args["mbid"].(string); ok && mbid != "" {
-		key = "mbid:" + mbid
-	} else {
-		artist, _ := args["artist"].(string)
-		album, _ := args["album"].(string)
-		key = fmt.Sprintf("%s|%s", artist, album)
-	}
+	key := generateCacheKey("album", args)
 
 	if cached, ok := a.api.cache.Album.Get(key); ok {
 		return &cached, nil
@@ -36,7 +28,15 @@ func (a *albumApi) GetInfo(args P) (*types.AlbumGetInfo, error) {
 		return nil, err
 	}
 
-	a.api.cache.Album.Set(key, result, 0)
+	ttl := a.getAdaptiveTTL(args)
+	a.api.cache.Album.Set(key, result, ttl)
 
 	return &result, nil
+}
+
+func (a *albumApi) getAdaptiveTTL(args P) time.Duration {
+	if _, hasUser := args["username"]; hasUser {
+		return 6 * time.Hour
+	}
+	return 24 * time.Hour
 }

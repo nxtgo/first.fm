@@ -6,9 +6,11 @@ import (
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 
-	"go.fm/constants"
 	"go.fm/lfm"
-	"go.fm/types/cmd"
+	"go.fm/pkg/constants/errs"
+	"go.fm/pkg/constants/opts"
+	"go.fm/pkg/ctx"
+	"go.fm/pkg/discord/reply"
 )
 
 type Command struct{}
@@ -44,21 +46,21 @@ func (Command) Data() discord.ApplicationCommandCreate {
 				MinValue:    &minLimit,
 				MaxValue:    &maxLimit,
 			},
-			cmd.UserOption,
+			opts.UserOption,
 		},
 	}
 }
 
-func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	reply := ctx.Reply(e)
-	if err := reply.Defer(); err != nil {
-		ctx.Error(e, constants.ErrorAcknowledgeCommand)
+func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) {
+	r := reply.New(e)
+	if err := r.Defer(); err != nil {
+		reply.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
 	user, err := ctx.GetUser(e)
 	if err != nil {
-		ctx.Error(e, constants.ErrorGetUser)
+		reply.Error(e, errs.ErrUserNotFound)
 		return
 	}
 
@@ -77,10 +79,14 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"limit": limit,
 		})
 		if err != nil {
-			_ = ctx.Error(e, err.Error())
+			reply.Error(e, err)
 			return
 		}
+
 		for i, a := range data.Artists {
+			if i > limit {
+				break
+			}
 			description += fmt.Sprintf("%d. %s — **%s** plays\n", i+1, a.Name, a.PlayCount)
 		}
 
@@ -90,10 +96,14 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"limit": limit,
 		})
 		if err != nil {
-			_ = ctx.Error(e, err.Error())
+			reply.Error(e, err)
 			return
 		}
+
 		for i, t := range data.Tracks {
+			if i > limit {
+				break
+			}
 			description += fmt.Sprintf("%d. %s — *%s* (**%s** plays)\n", i+1, t.Name, t.Artist.Name, t.PlayCount)
 		}
 
@@ -103,22 +113,28 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 			"limit": limit,
 		})
 		if err != nil {
-			_ = ctx.Error(e, err.Error())
+			reply.Error(e, err)
 			return
 		}
+
 		for i, a := range data.Albums {
+			if i > limit {
+				break
+			}
 			description += fmt.Sprintf("%d. %s — *%s* (**%s** plays)\n", i+1, a.Name, a.Artist.Name, a.PlayCount)
 		}
 	}
 
 	if description == "" {
-		description = constants.ErrorNoTracks
+		description = errs.ErrNoTracksFound.Error()
 	}
 
 	component := discord.NewContainer(
 		discord.NewTextDisplayf("### %s's top %ss", user, topType),
 		discord.NewTextDisplay(description),
+		discord.NewSmallSeparator(),
+		discord.NewTextDisplay("-# *if results are odd, use `/update`*"),
 	)
 
-	reply.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
+	r.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
 }

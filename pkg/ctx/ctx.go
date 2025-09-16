@@ -1,11 +1,10 @@
-package cmd
+package ctx
 
 import (
 	"context"
 	"strings"
 	"time"
 
-	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/snowflake/v2"
 
@@ -13,12 +12,6 @@ import (
 	"go.fm/db"
 	"go.fm/lfm"
 )
-
-var UserOption = discord.ApplicationCommandOptionString{
-	Name:        "user",
-	Description: "user to get data from",
-	Required:    false,
-}
 
 type CommandContext struct {
 	LastFM   *lfm.LastFMApi

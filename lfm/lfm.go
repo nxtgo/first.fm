@@ -9,9 +9,12 @@
 package lfm
 
 import (
+	"crypto/sha256"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 
 	httpx "github.com/nxtgo/httpx/client"
 
@@ -100,4 +103,28 @@ func decodeResponse(body []byte, result any) (err error) {
 	}
 	err = xml.Unmarshal(base.Inner, result)
 	return
+}
+
+func generateCacheKey(prefix string, args P) string {
+	keys := make([]string, 0, len(args))
+	for k := range args {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	parts := []string{prefix}
+	for _, k := range keys {
+		if v, ok := args[k]; ok {
+			parts = append(parts, fmt.Sprintf("%s:%v", k, v))
+		}
+	}
+
+	keyString := strings.Join(parts, "|")
+
+	if len(keyString) > 100 {
+		hash := sha256.Sum256([]byte(keyString))
+		return fmt.Sprintf("%s|%x", prefix, hash[:8])
+	}
+
+	return keyString
 }

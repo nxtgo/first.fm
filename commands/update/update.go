@@ -5,9 +5,11 @@ import (
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/snowflake/v2"
 
-	"go.fm/constants"
 	"go.fm/lfm"
-	"go.fm/types/cmd"
+	"go.fm/pkg/constants/errs"
+	"go.fm/pkg/constants/opts"
+	"go.fm/pkg/ctx"
+	"go.fm/pkg/discord/reply"
 )
 
 type Command struct{}
@@ -21,21 +23,21 @@ func (Command) Data() discord.ApplicationCommandCreate {
 			discord.ApplicationIntegrationTypeUserInstall,
 		},
 		Options: []discord.ApplicationCommandOption{
-			cmd.UserOption,
+			opts.UserOption,
 		},
 	}
 }
 
-func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext) {
-	reply := ctx.Reply(e)
-	if err := reply.Defer(); err != nil {
-		ctx.Error(e, constants.ErrorAcknowledgeCommand)
+func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) {
+	r := reply.New(e)
+	if err := r.Defer(); err != nil {
+		reply.Error(e, errs.ErrCommandDeferFailed)
 		return
 	}
 
 	username, err := ctx.GetUser(e)
 	if err != nil {
-		ctx.Error(e, constants.ErrorNotRegistered)
+		reply.Error(e, errs.ErrUserNotFound)
 		return
 	}
 
@@ -65,7 +67,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		"user": username,
 	})
 	if err != nil {
-		ctx.Error(e, constants.ErrorGetUser)
+		reply.Error(e, errs.ErrUserNotFound)
 		return
 	}
 	ctx.Cache.User.Set(username, *userInfo, 0)
@@ -79,23 +81,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.Com
 		ctx.Cache.Members.Set(*e.GuildID(), members, 0)
 	}
 
-	if ctx.Cache != nil {
-		if ctx.Cache.TopArtists != nil {
-			if top, err := ctx.LastFM.User.GetTopArtists(lfm.P{"user": username}); err == nil {
-				ctx.Cache.TopArtists.Set(username, *top, 0)
-			}
-		}
-		if ctx.Cache.TopAlbums != nil {
-			if top, err := ctx.LastFM.User.GetTopAlbums(lfm.P{"user": username}); err == nil {
-				ctx.Cache.TopAlbums.Set(username, *top, 0)
-			}
-		}
-		if ctx.Cache.TopTracks != nil {
-			if top, err := ctx.LastFM.User.GetTopTracks(lfm.P{"user": username}); err == nil {
-				ctx.Cache.TopTracks.Set(username, *top, 0)
-			}
-		}
-	}
+	go ctx.LastFM.User.PrefetchUserData(username)
 
-	reply.Content("updated your data with fresh one :)").Edit()
+	r.Content("updated your data with fresh one :)").Edit()
 }

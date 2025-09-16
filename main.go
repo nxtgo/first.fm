@@ -22,7 +22,7 @@ import (
 	"go.fm/db"
 	"go.fm/lfm"
 	"go.fm/logger"
-	"go.fm/types/cmd"
+	gofmCtx "go.fm/pkg/ctx"
 )
 
 //go:embed db/sql/schema.sql
@@ -40,7 +40,7 @@ func init() {
 	}
 
 	flag.BoolVar(&globalCmds, "global", true, "upload global commands to discord")
-	flag.BoolVar(&globalCmds, "delete", false, "delete commands on exit")
+	flag.BoolVar(&deleteCommands, "delete", false, "delete commands on exit")
 	flag.StringVar(&dbPath, "db", "database.db", "path to the SQLite database file")
 	flag.Parse()
 }
@@ -60,7 +60,7 @@ func main() {
 	closeConnection, database := initDatabase(ctx, dbPath)
 	defer closeConnection()
 
-	cmdCtx := cmd.CommandContext{
+	cmdCtx := gofmCtx.CommandContext{
 		LastFM:   lfm,
 		Database: database,
 		Cache:    lfmCache,

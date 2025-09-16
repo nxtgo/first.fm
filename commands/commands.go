@@ -14,10 +14,10 @@ import (
 	"go.fm/commands/top"
 	"go.fm/commands/update"
 	whoknows "go.fm/commands/who-knows"
-	"go.fm/types/cmd"
+	"go.fm/pkg/ctx"
 )
 
-var sharedCtx cmd.CommandContext
+var sharedCtx ctx.CommandContext
 var registry = map[string]Command{}
 
 func init() {
@@ -34,7 +34,7 @@ func init() {
 
 type Command interface {
 	Data() discord.ApplicationCommandCreate
-	Handle(e *events.ApplicationCommandInteractionCreate, ctx cmd.CommandContext)
+	Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext)
 }
 
 func Register(cmd Command) {
@@ -50,7 +50,7 @@ func All() []discord.ApplicationCommandCreate {
 	return cmds
 }
 
-func InitDependencies(ctx cmd.CommandContext) {
+func InitDependencies(ctx ctx.CommandContext) {
 	ctx.Start = time.Now()
 	sharedCtx = ctx
 }
