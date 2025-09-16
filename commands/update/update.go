@@ -81,23 +81,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 		ctx.Cache.Members.Set(*e.GuildID(), members, 0)
 	}
 
-	if ctx.Cache != nil {
-		if ctx.Cache.TopArtists != nil {
-			if top, err := ctx.LastFM.User.GetTopArtists(lfm.P{"user": username}); err == nil {
-				ctx.Cache.TopArtists.Set(username, *top, 0)
-			}
-		}
-		if ctx.Cache.TopAlbums != nil {
-			if top, err := ctx.LastFM.User.GetTopAlbums(lfm.P{"user": username}); err == nil {
-				ctx.Cache.TopAlbums.Set(username, *top, 0)
-			}
-		}
-		if ctx.Cache.TopTracks != nil {
-			if top, err := ctx.LastFM.User.GetTopTracks(lfm.P{"user": username}); err == nil {
-				ctx.Cache.TopTracks.Set(username, *top, 0)
-			}
-		}
-	}
+	go ctx.LastFM.User.PrefetchUserData(username)
 
 	r.Content("updated your data with fresh one :)").Edit()
 }

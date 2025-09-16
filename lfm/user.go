@@ -224,12 +224,12 @@ func (u *userApi) GetInfoWithPrefetch(args P) (*types.UserGetInfo, error) {
 		return nil, err
 	}
 
-	go u.prefetchUserData(username)
+	go u.PrefetchUserData(username)
 
 	return userInfo, nil
 }
 
-func (u *userApi) prefetchUserData(username string) {
+func (u *userApi) PrefetchUserData(username string) {
 	if _, ok := u.api.cache.TopArtists.Get(generateCacheKey("topartists", P{"user": username})); !ok {
 		u.GetTopArtists(P{"user": username, "limit": 10})
 	}
@@ -243,51 +243,33 @@ func (u *userApi) prefetchUserData(username string) {
 	}
 }
 
-func (u *userApi) InvalidateUserCache(username string, selective bool) {
-	if selective {
-		keys := []string{
-			generateCacheKey("recent", P{"user": username, "limit": 1}),
-			generateCacheKey("recent", P{"user": username, "limit": 5}),
-			generateCacheKey("recent", P{"user": username, "limit": 10}),
-		}
+func (u *userApi) InvalidateUserCache(username string) {
+	periods := []string{"7day", "1month", "3month", "6month", "12month", "overall"}
 
-		for _, key := range keys {
-			u.api.cache.Tracks.Delete(key)
-		}
-	} else {
-		commonLimits := []int{1, 5, 10, 20, 50}
-		periods := []string{"7day", "1month", "3month", "6month", "12month", "overall"}
+	for _, period := range periods {
+		key := generateCacheKey("topartists", P{"user": username, "period": period})
+		u.api.cache.TopArtists.Delete(key)
 
-		for _, limit := range commonLimits {
-			key := generateCacheKey("recent", P{"user": username, "limit": limit})
-			u.api.cache.Tracks.Delete(key)
-		}
+		key = generateCacheKey("topalbums", P{"user": username, "period": period})
+		u.api.cache.TopAlbums.Delete(key)
 
-		for _, period := range periods {
-			key := generateCacheKey("topartists", P{"user": username, "period": period})
-			u.api.cache.TopArtists.Delete(key)
-
-			key = generateCacheKey("topalbums", P{"user": username, "period": period})
-			u.api.cache.TopAlbums.Delete(key)
-
-			key = generateCacheKey("toptracks", P{"user": username, "period": period})
-			u.api.cache.TopTracks.Delete(key)
-		}
-
-		defaultKeys := []P{
-			{"user": username},
-			{"user": username, "limit": 10},
-			{"user": username, "limit": 50},
-		}
-
-		for _, args := range defaultKeys {
-			u.api.cache.TopArtists.Delete(generateCacheKey("topartists", args))
-			u.api.cache.TopAlbums.Delete(generateCacheKey("topalbums", args))
-			u.api.cache.TopTracks.Delete(generateCacheKey("toptracks", args))
-		}
-
-		u.api.cache.User.Delete(username)
+		key = generateCacheKey("toptracks", P{"user": username, "period": period})
+		u.api.cache.TopTracks.Delete(key)
 	}
+
+	defaultKeys := []P{
+		{"user": username},
+		{"user": username, "limit": 10},
+		{"user": username, "limit": 50},
+	}
+
+	for _, args := range defaultKeys {
+		u.api.cache.TopArtists.Delete(generateCacheKey("topartists", args))
+		u.api.cache.TopAlbums.Delete(generateCacheKey("topalbums", args))
+		u.api.cache.TopTracks.Delete(generateCacheKey("toptracks", args))
+	}
+
+	u.api.cache.User.Delete(username)
 }
 
 func (u *userApi) getTopDataTTL(args P) time.Duration {

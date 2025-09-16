@@ -79,10 +79,14 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			"limit": limit,
 		})
 		if err != nil {
-			_ = reply.Error(e, err)
+			reply.Error(e, err)
 			return
 		}
+
 		for i, a := range data.Artists {
+			if i > limit {
+				break
+			}
 			description += fmt.Sprintf("%d. %s — **%s** plays\n", i+1, a.Name, a.PlayCount)
 		}
 
@@ -92,10 +96,14 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			"limit": limit,
 		})
 		if err != nil {
-			_ = reply.Error(e, err)
+			reply.Error(e, err)
 			return
 		}
+
 		for i, t := range data.Tracks {
+			if i > limit {
+				break
+			}
 			description += fmt.Sprintf("%d. %s — *%s* (**%s** plays)\n", i+1, t.Name, t.Artist.Name, t.PlayCount)
 		}
 
@@ -105,10 +113,14 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			"limit": limit,
 		})
 		if err != nil {
-			_ = reply.Error(e, err)
+			reply.Error(e, err)
 			return
 		}
+
 		for i, a := range data.Albums {
+			if i > limit {
+				break
+			}
 			description += fmt.Sprintf("%d. %s — *%s* (**%s** plays)\n", i+1, a.Name, a.Artist.Name, a.PlayCount)
 		}
 	}
@@ -120,6 +132,8 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 	component := discord.NewContainer(
 		discord.NewTextDisplayf("### %s's top %ss", user, topType),
 		discord.NewTextDisplay(description),
+		discord.NewSmallSeparator(),
+		discord.NewTextDisplay("-# *if results are odd, use `/update`*"),
 	)
 
 	r.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
