@@ -10,6 +10,7 @@ require (
 	github.com/nxtgo/gce v0.0.0-20250910001932-ff8e22b0e630
 	github.com/nxtgo/httpx v0.0.0-20250911233919-ff1f12b9908c
 	github.com/nxtgo/zlog v0.0.0-20250905224555-91d56b347e9b
+	golang.org/x/image v0.31.0
 )
 
 require (
@@ -18,7 +19,6 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/sasha-s/go-csync v0.0.0-20240107134140-fcbab37b09ad // indirect
 	golang.org/x/crypto v0.42.0 // indirect
-	golang.org/x/image v0.31.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 )

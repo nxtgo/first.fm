@@ -10,11 +10,11 @@ import (
 	"go.fm/commands/botinfo"
 	"go.fm/commands/fm"
 	"go.fm/commands/profile"
-	"go.fm/commands/set-user"
+	setuser "go.fm/commands/set-user"
 	"go.fm/commands/test"
 	"go.fm/commands/top"
 	"go.fm/commands/update"
-	"go.fm/commands/who-knows"
+	whoknows "go.fm/commands/who-knows"
 	"go.fm/pkg/ctx"
 )
 
