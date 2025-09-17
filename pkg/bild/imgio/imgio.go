@@ -3,14 +3,66 @@ package imgio
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"io"
+	"net/http"
+	"os"
 )
 
 // Encoder encodes the provided image and writes it
 type Encoder func(io.Writer, image.Image) error
+
+// Open loads and decodes an image from a file and returns it.
+//
+// Usage example:
+//
+//	// Decodes an image from a file with the given filename
+//	// returns an error if something went wrong
+//	img, err := Open("exampleName")
+func Open(filename string) (image.Image, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	img, _, err := image.Decode(f)
+	if err != nil {
+		return nil, err
+	}
+
+	return img, nil
+}
+
+// Fetch retrieves the raw image bytes from the given URL.
+//
+// Usage example:
+//
+//	data, err := Fetch("https://example.com/image.png")
+//	if err != nil {
+//	    // handle error
+//	}
+func Fetch(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch image: %s", resp.Status)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
 
 // DecodeImage loads and decodes an image from a byte slice and returns it.
 //

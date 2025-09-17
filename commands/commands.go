@@ -10,10 +10,11 @@ import (
 	"go.fm/commands/botinfo"
 	"go.fm/commands/fm"
 	"go.fm/commands/profile"
-	setuser "go.fm/commands/set-user"
+	"go.fm/commands/set-user"
+	"go.fm/commands/test"
 	"go.fm/commands/top"
 	"go.fm/commands/update"
-	whoknows "go.fm/commands/who-knows"
+	"go.fm/commands/who-knows"
 	"go.fm/pkg/ctx"
 )
 
@@ -30,6 +31,9 @@ func init() {
 
 	// non-lastfm commands :prayge:
 	Register(botinfo.Command{})
+
+	// delete me
+	Register(test.Command{})
 }
 
 type Command interface {

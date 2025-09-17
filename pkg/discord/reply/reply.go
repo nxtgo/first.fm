@@ -14,6 +14,7 @@ type ResponseBuilder struct {
 	components []discord.LayoutComponent
 	flags      discord.MessageFlags
 	ephemeral  bool
+	files      []*discord.File
 }
 
 func New(e *events.ApplicationCommandInteractionCreate) *ResponseBuilder {
@@ -32,6 +33,11 @@ func (r *ResponseBuilder) Content(msg string, a ...any) *ResponseBuilder {
 
 func (r *ResponseBuilder) Flags(flags discord.MessageFlags) *ResponseBuilder {
 	r.flags = flags
+	return r
+}
+
+func (r *ResponseBuilder) File(file *discord.File) *ResponseBuilder {
+	r.files = append(r.files, file)
 	return r
 }
 
@@ -58,6 +64,7 @@ func (r *ResponseBuilder) FollowUp() error {
 	msg := discord.MessageCreate{
 		Content:         *r.content,
 		Embeds:          r.embeds,
+		Files:           r.files,
 		AllowedMentions: &discord.AllowedMentions{},
 	}
 	if r.ephemeral {
@@ -80,6 +87,7 @@ func (r *ResponseBuilder) Send() error {
 			Components:      &r.components,
 			Content:         r.content,
 			Embeds:          &r.embeds,
+			Files:           r.files,
 			Flags:           &r.flags,
 			AllowedMentions: &discord.AllowedMentions{},
 		},
@@ -95,6 +103,7 @@ func (r *ResponseBuilder) Edit() error {
 			Components:      &r.components,
 			Flags:           &r.flags,
 			Content:         r.content,
+			Files:           r.files,
 			Embeds:          &r.embeds,
 			AllowedMentions: &discord.AllowedMentions{},
 		},
