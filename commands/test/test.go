@@ -1,6 +1,6 @@
 package test
 
-// an *pver*engineering masterpiece
+// an *over*engineering masterpiece
 
 import (
 	"bytes"

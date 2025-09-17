@@ -6,6 +6,7 @@ import (
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+	"github.com/nxtgo/zlog"
 
 	"go.fm/commands/botinfo"
 	"go.fm/commands/fm"
@@ -15,6 +16,7 @@ import (
 	"go.fm/commands/top"
 	"go.fm/commands/update"
 	whoknows "go.fm/commands/who-knows"
+	"go.fm/logger"
 	"go.fm/pkg/ctx"
 )
 
@@ -48,6 +50,7 @@ func Register(cmd Command) {
 func All() []discord.ApplicationCommandCreate {
 	cmds := make([]discord.ApplicationCommandCreate, 0, len(registry))
 	for _, cmd := range registry {
+		logger.Log.Debugf("added command %s to registry", cmd.Data().CommandName())
 		cmds = append(cmds, cmd.Data())
 	}
 
@@ -64,6 +67,25 @@ func Handler() bot.EventListener {
 		OnApplicationCommandInteraction: func(e *events.ApplicationCommandInteractionCreate) {
 			if cmd, ok := registry[e.Data.CommandName()]; ok {
 				cmd.Handle(e, sharedCtx)
+
+				guildName := "user_app"
+				guildId := "nil"
+				guild, ok := e.Client().Caches.Guild(*e.GuildID())
+				if ok {
+					guildName = guild.Name
+					guildId = guild.ID.String()
+				}
+
+				logger.Log.Debugw(
+					"executed command %s",
+					zlog.F{
+						"guild_name":  guildName,
+						"guild_id":    guildId,
+						"author_name": e.Member().User.Username,
+						"author_id":   e.Member().User.ID.String(),
+					},
+					cmd.Data().CommandName(),
+				)
 			}
 		},
 	}
