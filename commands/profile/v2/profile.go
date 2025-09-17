@@ -1,4 +1,4 @@
-package test
+package v2
 
 // an *over*engineering masterpiece
 
@@ -50,8 +50,8 @@ func fetchFav[T any](fetch func() (T, error), extract func(T) Fav) Fav {
 
 func (Command) Data() discord.ApplicationCommandCreate {
 	return discord.SlashCommandCreate{
-		Name:        "test",
-		Description: "this is a test command",
+		Name:        "profile-v2",
+		Description: "[NEW] provile v2 (WIP) (DELETED SOON)",
 		IntegrationTypes: []discord.ApplicationIntegrationType{
 			discord.ApplicationIntegrationTypeGuildInstall,
 		},

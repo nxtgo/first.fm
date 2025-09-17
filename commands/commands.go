@@ -11,11 +11,12 @@ import (
 	"go.fm/commands/botinfo"
 	"go.fm/commands/fm"
 	"go.fm/commands/profile"
+	profilev2 "go.fm/commands/profile/v2"
 	"go.fm/commands/setuser"
-	"go.fm/commands/test"
 	"go.fm/commands/top"
 	"go.fm/commands/update"
 	"go.fm/commands/whoknows"
+
 	"go.fm/logger"
 	"go.fm/pkg/ctx"
 )
@@ -35,7 +36,7 @@ func init() {
 	Register(botinfo.Command{})
 
 	// delete me
-	Register(test.Command{})
+	Register(profilev2.Command{})
 }
 
 type Command interface {
