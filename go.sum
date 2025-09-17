@@ -16,8 +16,6 @@ github.com/nxtgo/env v0.0.0-20250905234547-f627e8d51f13 h1:hX0UuV5kUvn9CM9gpxMm+
 github.com/nxtgo/env v0.0.0-20250905234547-f627e8d51f13/go.mod h1:r0zexk0/D43emHcb+mMAoICHwZj1DYd887q8Z1xidpA=
 github.com/nxtgo/gce v0.0.0-20250910001932-ff8e22b0e630 h1:q6YDsr4P1r0iViA9p04SmBNVK2+wP6m6dLZsKXhPhDs=
 github.com/nxtgo/gce v0.0.0-20250910001932-ff8e22b0e630/go.mod h1:Lo1Rn6XM9r74u2JPtznKRojJuvZLd5e8V6dqUOP/yJo=
-github.com/nxtgo/httpx v0.0.0-20250911233919-ff1f12b9908c h1:0mgIRzYgSWUlGXruuB86A8BN+yO3jyyanD/iV2LrBx8=
-github.com/nxtgo/httpx v0.0.0-20250911233919-ff1f12b9908c/go.mod h1:Pbkzy4EIiksqWmuahKZ881mkbISnsy+wNHJzmYUBTOg=
 github.com/nxtgo/zlog v0.0.0-20250905224555-91d56b347e9b h1:8NuRbM5rK9hkF82EDlMFNnSVdCd1IasK4faR1bbctWo=
 github.com/nxtgo/zlog v0.0.0-20250905224555-91d56b347e9b/go.mod h1:+GsCeLJZWqFJYu0QnV0kFKrYQ6gX+x5yrbWeEY8DkeY=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

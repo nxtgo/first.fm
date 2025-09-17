@@ -18,39 +18,24 @@ type userApi struct {
 func (u *userApi) GetInfo(args P) (*types.UserGetInfo, error) {
 	username := args["user"].(string)
 
-	// Check if we have cached data
 	if user, ok := u.api.cache.User.Get(username); ok {
 		return &user, nil
 	}
 
-	req := u.api.baseRequest("user.getinfo", args)
-	data, err := req.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
 	var result types.UserGetInfo
-	if err := decodeResponse(data, &result); err != nil {
+	if err := u.api.doAndDecode("user.getinfo", args, &result); err != nil {
 		return nil, err
 	}
 
 	u.api.cache.User.Set(username, result, 0)
-
 	return &result, nil
 }
 
 func (u *userApi) GetRecentTracks(args P) (*types.UserGetRecentTracks, error) {
-	req := u.api.baseRequest("user.getrecenttracks", args)
-	data, err := req.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
 	var result types.UserGetRecentTracks
-	if err := decodeResponse(data, &result); err != nil {
+	if err := u.api.doAndDecode("user.getrecenttracks", args, &result); err != nil {
 		return nil, err
 	}
-
 	return &result, nil
 }
 
@@ -61,14 +46,8 @@ func (u *userApi) GetTopArtists(args P) (*types.UserGetTopArtists, error) {
 		return &artists, nil
 	}
 
-	req := u.api.baseRequest("user.gettopartists", args)
-	data, err := req.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
 	var result types.UserGetTopArtists
-	if err := decodeResponse(data, &result); err != nil {
+	if err := u.api.doAndDecode("user.gettopartists", args, &result); err != nil {
 		return nil, err
 	}
 
@@ -85,14 +64,8 @@ func (u *userApi) GetTopAlbums(args P) (*types.UserGetTopAlbums, error) {
 		return &albums, nil
 	}
 
-	req := u.api.baseRequest("user.gettopalbums", args)
-	data, err := req.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
 	var result types.UserGetTopAlbums
-	if err := decodeResponse(data, &result); err != nil {
+	if err := u.api.doAndDecode("user.gettopalbums", args, &result); err != nil {
 		return nil, err
 	}
 
@@ -109,14 +82,8 @@ func (u *userApi) GetTopTracks(args P) (*types.UserGetTopTracks, error) {
 		return &tracks, nil
 	}
 
-	req := u.api.baseRequest("user.gettoptracks", args)
-	data, err := req.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
 	var result types.UserGetTopTracks
-	if err := decodeResponse(data, &result); err != nil {
+	if err := u.api.doAndDecode("user.gettoptracks", args, &result); err != nil {
 		return nil, err
 	}
 
@@ -285,6 +252,5 @@ func (u *userApi) getTopDataTTL(args P) time.Duration {
 			return 12 * time.Hour
 		}
 	}
-
 	return 15 * time.Minute
 }

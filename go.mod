@@ -8,7 +8,6 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/nxtgo/env v0.0.0-20250905234547-f627e8d51f13
 	github.com/nxtgo/gce v0.0.0-20250910001932-ff8e22b0e630
-	github.com/nxtgo/httpx v0.0.0-20250911233919-ff1f12b9908c
 	github.com/nxtgo/zlog v0.0.0-20250905224555-91d56b347e9b
 	golang.org/x/image v0.31.0
 )

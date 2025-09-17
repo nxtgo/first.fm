@@ -17,14 +17,8 @@ func (a *albumApi) GetInfo(args P) (*types.AlbumGetInfo, error) {
 		return &cached, nil
 	}
 
-	req := a.api.baseRequest("album.getinfo", args)
-	data, err := req.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
 	var result types.AlbumGetInfo
-	if err := decodeResponse(data, &result); err != nil {
+	if err := a.api.doAndDecode("album.getinfo", args, &result); err != nil {
 		return nil, err
 	}
 

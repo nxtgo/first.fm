@@ -1,11 +1,3 @@
-////////////////////////
-///   LAST.FM V2     ///
-/// DO NOT TOUCH!!!  ///
-///////////////////////
-
-// issuer: @elisiei -- please do not touch this file
-// heavy wip, concept concerns.
-
 package lfm
 
 import (
@@ -13,10 +5,11 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"sort"
 	"strings"
-
-	httpx "github.com/nxtgo/httpx/client"
 
 	"go.fm/cache"
 )
@@ -34,7 +27,7 @@ type lastFMParams struct {
 
 type LastFMApi struct {
 	params *lastFMParams
-	client *httpx.Client
+	client *http.Client
 	apiKey string
 	cache  *cache.Cache
 
@@ -52,14 +45,9 @@ func New(key string, c *cache.Cache) *LastFMApi {
 			"contact: yehorovye@disroot.org)",
 	}
 
-	client := httpx.New().
-		BaseURL(lastFMBaseURL).
-		Header("User-Agent", params.useragent).
-		Header("Accept", "application/xml")
-
 	api := &LastFMApi{
 		params: &params,
-		client: client,
+		client: &http.Client{},
 		apiKey: params.apikey,
 		cache:  c,
 	}
@@ -72,16 +60,44 @@ func New(key string, c *cache.Cache) *LastFMApi {
 	return api
 }
 
-func (c *LastFMApi) baseRequest(method string, params P) *httpx.Request {
-	req := c.client.Get("").
-		Query("api_key", c.apiKey).
-		Query("method", method)
+// baseRequest constructs and executes a GET request.
+func (c *LastFMApi) baseRequest(method string, params P) (*http.Response, error) {
+	// Build query
+	values := url.Values{}
+	values.Set("api_key", c.apiKey)
+	values.Set("method", method)
 
 	for k, v := range params {
-		req.Query(k, fmt.Sprintf("%v", v))
+		values.Set(k, fmt.Sprintf("%v", v))
 	}
 
-	return req
+	u := lastFMBaseURL + "?" + values.Encode()
+
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("User-Agent", c.params.useragent)
+	req.Header.Set("Accept", "application/xml")
+
+	return c.client.Do(req)
+}
+
+// helper to read and decode
+func (c *LastFMApi) doAndDecode(method string, params P, result any) error {
+	resp, err := c.baseRequest(method, params)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return decodeResponse(body, result)
 }
 
 func decodeResponse(body []byte, result any) (err error) {

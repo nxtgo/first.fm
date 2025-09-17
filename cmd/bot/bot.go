@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	_ "embed"
 	"flag"
 	"os"
 	"os/signal"
@@ -26,9 +25,6 @@ import (
 	"go.fm/logger"
 	gofmCtx "go.fm/pkg/ctx"
 )
-
-//go:embed db/sql/schema.sql
-var ddl string
 
 var (
 	globalCmds     bool
@@ -98,7 +94,7 @@ func initDatabase(ctx context.Context, path string) (func() error, *db.Queries) 
 		logger.Log.Fatalf("failed opening database: %v", err)
 	}
 
-	if _, err := dbConn.ExecContext(ctx, ddl); err != nil {
+	if _, err := dbConn.ExecContext(ctx, db.Schema); err != nil {
 		logger.Log.Fatalf("failed executing schema: %v", err)
 	}
 
