@@ -12,6 +12,7 @@ import (
 	"go.fm/pkg/constants/opts"
 	"go.fm/pkg/ctx"
 	"go.fm/pkg/discord/reply"
+	"go.fm/pkg/image"
 )
 
 type Command struct{}
@@ -114,6 +115,11 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 		avatar = "https://lastfm.freetls.fastly.net/i/u/avatar170s/818148bf682d429dc215c1705eb27b98.png"
 	}
 
+	color := 0x00ADD8
+	if dominantColor, err := image.DominantColor(avatar); err == nil {
+		color = dominantColor
+	}
+
 	component := discord.NewContainer(
 		discord.NewSection(
 			discord.NewTextDisplayf("## [%s](%s)", realName, user.Url),
@@ -133,7 +139,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			user.AlbumCount,
 			user.TrackCount,
 		),
-	).WithAccentColor(0x00ADD8)
+	).WithAccentColor(color)
 
 	r.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
 }

@@ -13,12 +13,12 @@ import (
 	"go.fm/pkg/discord/reply"
 )
 
-type Command struct{}
-
 var (
 	maxLimit int = 100
 	minLimit int = 5
 )
+
+type Command struct{}
 
 func (Command) Data() discord.ApplicationCommandCreate {
 	return discord.SlashCommandCreate{

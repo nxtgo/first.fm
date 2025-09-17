@@ -53,3 +53,8 @@ func DrawText(canvas draw.Image, x, y int, text string, col color.Color, face fo
 	}
 	d.DrawString(text)
 }
+
+func Measure(f font.Face, s string) int {
+	d := &font.Drawer{Face: f}
+	return d.MeasureString(s).Ceil()
+}

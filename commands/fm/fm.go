@@ -79,7 +79,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			discord.NewTextDisplayf("## [%s](%s)\nby **%s**\n-# *At %s*", track.Name, track.Url, track.Artist.Name, track.Album.Name),
 		).WithAccessory(discord.NewThumbnail(thumbnail)),
 		discord.NewSmallSeparator(),
-		discord.NewTextDisplayf("Scrobbled **%d** times", trackData.UserPlayCount),
+		discord.NewTextDisplayf("-# Scrobbled **%d** times", trackData.UserPlayCount),
 	).WithAccentColor(color)
 
 	r.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()

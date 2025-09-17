@@ -14,6 +14,7 @@ import (
 	"github.com/disgoorg/disgo/events"
 
 	"go.fm/lfm"
+	"go.fm/lfm/types"
 	"go.fm/pkg/bild/blur"
 	"go.fm/pkg/bild/font"
 	"go.fm/pkg/bild/imgio"
@@ -23,15 +24,29 @@ import (
 	"go.fm/pkg/constants/opts"
 	"go.fm/pkg/ctx"
 	"go.fm/pkg/discord/reply"
+	"go.fm/pkg/strng"
 )
 
 var inter *font.Font
 
 func init() {
-	inter = font.LoadFont("assets/Inter_24pt-Regular.ttf")
+	inter = font.LoadFont("assets/font/Inter_24pt-Regular.ttf")
 }
 
 type Command struct{}
+
+type Fav struct {
+	Name      string
+	PlayCount string
+}
+
+func fetchFav[T any](fetch func() (T, error), extract func(T) Fav) Fav {
+	data, err := fetch()
+	if err != nil {
+		return Fav{"none", "0"}
+	}
+	return extract(data)
+}
 
 func (Command) Data() discord.ApplicationCommandCreate {
 	return discord.SlashCommandCreate{
@@ -65,12 +80,51 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 		return
 	}
 
+	favTrack := fetchFav(
+		func() (*types.UserGetTopTracks, error) {
+			return ctx.LastFM.User.GetTopTracks(lfm.P{"user": username, "limit": 1})
+		},
+		func(tt *types.UserGetTopTracks) Fav {
+			if len(tt.Tracks) == 0 {
+				return Fav{"none", "0"}
+			}
+			t := tt.Tracks[0]
+			return Fav{t.Name, t.PlayCount}
+		},
+	)
+
+	favArtist := fetchFav(
+		func() (*types.UserGetTopArtists, error) {
+			return ctx.LastFM.User.GetTopArtists(lfm.P{"user": username, "limit": 1})
+		},
+		func(ta *types.UserGetTopArtists) Fav {
+			if len(ta.Artists) == 0 {
+				return Fav{"none", "0"}
+			}
+			a := ta.Artists[0]
+			return Fav{a.Name, a.PlayCount}
+		},
+	)
+
+	favAlbum := fetchFav(
+		func() (*types.UserGetTopAlbums, error) {
+			return ctx.LastFM.User.GetTopAlbums(lfm.P{"user": username, "limit": 1})
+		},
+		func(ta *types.UserGetTopAlbums) Fav {
+			if len(ta.Albums) == 0 {
+				return Fav{"none", "0"}
+			}
+			a := ta.Albums[0]
+			return Fav{a.Name, a.PlayCount}
+		},
+	)
+
 	runtime.GC()
 	var mStart, mEnd runtime.MemStats
 	runtime.ReadMemStats(&mStart)
 
 	// - start memory measure -
-	gradientData, err := imgio.Open("assets/gradient.png")
+	gradientData, err := imgio.Open("assets/img/profile_gradient.png")
 	if err != nil {
 		reply.Error(e, fmt.Errorf("failed to load gradient background: %w", err))
 		return
@@ -104,7 +158,6 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 	draw.Draw(canvas, canvas.Bounds(), gradient, image.Point{0, 0}, draw.Over)
 
 	avatarImage = transform.Resize(avatarImage, avatarSize, avatarSize, transform.Gaussian)
-
 	mask := mask.Rounded(avatarSize, avatarSize, radius)
 
 	draw.DrawMask(
@@ -135,26 +188,55 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 	textY2 := textY1 + face32.Metrics().Height.Ceil() - 10
 	font.DrawText(canvas, textX, textY2, fmt.Sprintf("@%s", user.Name), color.White, face16)
 
-	// mock lol
+	// below avatar btw
 	labelFace := inter.Face(20, 72)
 	valueFace := inter.Face(26, 72)
 	spacing := 6
 	infoStartY := avatarPadding.Y + avatarSize + 35
 
+	// colors
+	labelColor := color.RGBA{170, 170, 170, 255}
+	valueColor := color.White
+
+	// nums
+	artistNum := favArtist.PlayCount
+	trackNum := favTrack.PlayCount
+	albumNum := favAlbum.PlayCount
+
+	// font width
+	wArtist := font.Measure(valueFace, artistNum)
+	wTrack := font.Measure(valueFace, trackNum)
+	wAlbum := font.Measure(valueFace, albumNum)
+
+	maxNumW := wArtist
+	maxNumW = max(wTrack, maxNumW)
+	maxNumW = max(wAlbum, maxNumW)
+
+	numGap := 12
+	xBase := avatarPadding.X
+	y := infoStartY
+
 	// favourite artist
-	font.DrawText(canvas, avatarPadding.X, infoStartY, "Favourite artist", color.White, labelFace)
-	font.DrawText(canvas, avatarPadding.X, infoStartY+labelFace.Metrics().Height.Ceil()+spacing, "Crystal Castles", color.RGBA{180, 180, 255, 255}, valueFace)
+	font.DrawText(canvas, xBase, y, "Favourite artist", labelColor, labelFace)
+	valY := y + labelFace.Metrics().Height.Ceil() + spacing
+	font.DrawText(canvas, xBase, valY, artistNum, labelColor, valueFace)
+	font.DrawText(canvas, xBase+maxNumW+numGap, valY, strng.Truncate(favArtist.Name, 25), valueColor, valueFace)
 
-	// top track
-	nextY := infoStartY + labelFace.Metrics().Height.Ceil() + spacing + valueFace.Metrics().Height.Ceil() + spacing
-	font.DrawText(canvas, avatarPadding.X, nextY, "Top track", color.White, labelFace)
-	font.DrawText(canvas, avatarPadding.X, nextY+labelFace.Metrics().Height.Ceil()+spacing, "Vanishing Point", color.RGBA{180, 180, 255, 255}, valueFace)
+	// favourite track
+	y = valY + valueFace.Metrics().Height.Ceil() + spacing
+	font.DrawText(canvas, xBase, y, "Favourite track", labelColor, labelFace)
+	valY = y + labelFace.Metrics().Height.Ceil() + spacing
+	font.DrawText(canvas, xBase, valY, trackNum, labelColor, valueFace)
+	font.DrawText(canvas, xBase+maxNumW+numGap, valY, strng.Truncate(favTrack.Name, 25), valueColor, valueFace)
 
-	// play count
-	nextY = nextY + labelFace.Metrics().Height.Ceil() + spacing + valueFace.Metrics().Height.Ceil() + spacing
-	font.DrawText(canvas, avatarPadding.X, nextY, "Play count", color.White, labelFace)
-	font.DrawText(canvas, avatarPadding.X, nextY+labelFace.Metrics().Height.Ceil()+spacing, "1,234", color.RGBA{180, 180, 255, 255}, valueFace)
+	// favourite album
+	y = valY + valueFace.Metrics().Height.Ceil() + spacing
+	font.DrawText(canvas, xBase, y, "Favourite album", labelColor, labelFace)
+	valY = y + labelFace.Metrics().Height.Ceil() + spacing
+	font.DrawText(canvas, xBase, valY, albumNum, labelColor, valueFace)
+	font.DrawText(canvas, xBase+maxNumW+numGap, valY, strng.Truncate(favAlbum.Name, 25), valueColor, valueFace)
 
+	// :D
 	result, err := imgio.Encode(canvas, imgio.PNGEncoder())
 	if err != nil {
 		reply.Error(e, err)
@@ -165,8 +247,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 	runtime.ReadMemStats(&mEnd)
 
 	file := discord.NewFile("test.png", "", bytes.NewReader(result))
-
-	r.File(file).Content("used `%vmb`", bToMb(mEnd.Alloc-mStart.Alloc)).Edit()
+	r.File(file).Content("ready. (wip command, testing purposes)\n-# *used %vmb*", bToMb(mEnd.Alloc-mStart.Alloc)).Edit()
 }
 
 func bToMb(b uint64) uint64 {

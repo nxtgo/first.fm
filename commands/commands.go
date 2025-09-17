@@ -11,11 +11,11 @@ import (
 	"go.fm/commands/botinfo"
 	"go.fm/commands/fm"
 	"go.fm/commands/profile"
-	setuser "go.fm/commands/set-user"
+	"go.fm/commands/setuser"
 	"go.fm/commands/test"
 	"go.fm/commands/top"
 	"go.fm/commands/update"
-	whoknows "go.fm/commands/who-knows"
+	"go.fm/commands/whoknows"
 	"go.fm/logger"
 	"go.fm/pkg/ctx"
 )
@@ -66,8 +66,9 @@ func Handler() bot.EventListener {
 	return &events.ListenerAdapter{
 		OnApplicationCommandInteraction: func(e *events.ApplicationCommandInteractionCreate) {
 			if cmd, ok := registry[e.Data.CommandName()]; ok {
-				cmd.Handle(e, sharedCtx)
+				go cmd.Handle(e, sharedCtx)
 
+				// logger stuff, may be removed later
 				guildName := "user_app"
 				guildId := "nil"
 				guild, ok := e.Client().Caches.Guild(*e.GuildID())

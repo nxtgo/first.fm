@@ -12,6 +12,8 @@ import (
 	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
 	dgocache "github.com/disgoorg/disgo/cache"
+	"github.com/disgoorg/disgo/discord"
+	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/snowflake/v2"
 	_ "github.com/mattn/go-sqlite3"
@@ -124,7 +126,18 @@ func initDiscordClient(token string) *bot.Client {
 	client, err := disgo.New(
 		token,
 		options,
-		bot.WithEventListeners(commands.Handler()),
+		bot.WithEventListeners(
+			commands.Handler(),
+			bot.NewListenerFunc(func(r *events.Ready) {
+				logger.Log.Info("client ready v/")
+				if err := r.Client().SetPresence(context.TODO(),
+					gateway.WithListeningActivity("your scrobbles <3"),
+					gateway.WithOnlineStatus(discord.OnlineStatusOnline),
+				); err != nil {
+					logger.Log.Errorf("failed to set presence: %s", err)
+				}
+			}),
+		),
 		cacheOptions,
 	)
 	if err != nil {
