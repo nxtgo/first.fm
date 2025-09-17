@@ -25,11 +25,11 @@ type Cache struct {
 func NewCache() *Cache {
 	return &Cache{
 		User: gce.New[string, types.UserGetInfo](
-			gce.WithDefaultTTL(time.Minute),
+			gce.WithDefaultTTL(time.Hour),
 			gce.WithMaxEntries(50_000),
 		),
 		Members: gce.New[snowflake.ID, map[snowflake.ID]string](
-			gce.WithDefaultTTL(time.Minute*10),
+			gce.WithDefaultTTL(time.Hour*6),
 			gce.WithMaxEntries(2000),
 		),
 		Album: gce.New[string, types.AlbumGetInfo](

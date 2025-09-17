@@ -1,6 +1,3 @@
-// this command represents the future command structure for all
-// go.fm commands, heavily wip.
-
 package whoknows
 
 import (
@@ -15,32 +12,42 @@ import (
 	"github.com/disgoorg/snowflake/v2"
 
 	"go.fm/lfm"
-	"go.fm/lfm/types"
+	"go.fm/pkg/constants/emojis"
 	"go.fm/pkg/constants/errs"
 	"go.fm/pkg/ctx"
 	"go.fm/pkg/discord/reply"
 	"go.fm/pkg/image"
 )
 
-type Command struct{}
-
 var (
-	maxLimit int = 100
-	minLimit int = 3
+	maxLimit     = 100
+	minLimit     = 3
+	defaultLimit = 10
+	maxWorkers   = 20
+	timeout      = 30 * time.Second
 )
 
-type PlayResult struct {
-	UserID    string
-	Username  string
-	PlayCount int
+type Command struct{}
+
+type Options struct {
+	Type     string
+	Name     string
+	Limit    int
+	IsGlobal bool
 }
 
-type QueryInfo struct {
+type Query struct {
 	Type       string
 	Name       string
 	ArtistName string
 	Thumbnail  string
 	BetterName string
+}
+
+type Result struct {
+	UserID    string
+	Username  string
+	PlayCount int
 }
 
 func (Command) Data() discord.ApplicationCommandCreate {
@@ -89,21 +96,21 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 		return
 	}
 
-	options := parseCommandOptions(e)
+	options := parseOptions(e)
 
-	queryInfo, err := resolveQueryInfo(options, e, ctx)
+	query, err := buildQuery(options, e, ctx)
 	if err != nil {
 		reply.Error(e, err)
 		return
 	}
 
-	users, err := getUserList(options.IsGlobal, e, ctx)
+	users, err := getUsers(options.IsGlobal, e, ctx)
 	if err != nil {
 		reply.Error(e, errs.ErrUnexpected)
 		return
 	}
 
-	results := fetchPlayCounts(queryInfo, users, options.Limit, ctx)
+	results := fetchPlayCounts(query, users, ctx)
 	if len(results) == 0 {
 		reply.Error(e, errs.ErrNoListeners)
 		return
@@ -113,28 +120,21 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 		return results[i].PlayCount > results[j].PlayCount
 	})
 
-	sendWhoKnowsResponse(e, r, queryInfo, results, options)
+	sendResponse(e, r, query, results, options)
 }
 
-type CommandOptions struct {
-	Type     string
-	Name     string
-	Limit    int
-	IsGlobal bool
-}
-
-func parseCommandOptions(e *events.ApplicationCommandInteractionCreate) CommandOptions {
+func parseOptions(e *events.ApplicationCommandInteractionCreate) Options {
 	data := e.SlashCommandInteractionData()
 
-	limit := 10
-	if l, defined := data.OptInt("limit"); defined {
+	limit := defaultLimit
+	if l, ok := data.OptInt("limit"); ok {
 		limit = l
 	}
 
-	isGlobal, _ := data.OptBool("global")
 	name, _ := data.OptString("name")
+	isGlobal, _ := data.OptBool("global")
 
-	return CommandOptions{
+	return Options{
 		Type:     data.String("type"),
 		Name:     name,
 		Limit:    limit,
@@ -142,102 +142,100 @@ func parseCommandOptions(e *events.ApplicationCommandInteractionCreate) CommandO
 	}
 }
 
-func resolveQueryInfo(options CommandOptions, e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) (*QueryInfo, error) {
-	queryInfo := &QueryInfo{Type: options.Type}
+func buildQuery(options Options, e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) (*Query, error) {
+	query := &Query{Type: options.Type}
 
 	if options.Name != "" {
-		queryInfo.Name = options.Name
+		query.Name = options.Name
 	} else {
-		current, err := getCurrentTrack(e, ctx)
-		if err != nil {
+		if err := setQueryFromCurrentTrack(query, e, ctx); err != nil {
 			return nil, err
-		}
-		currentTrack := current.Tracks[0]
-
-		switch options.Type {
-		case "artist":
-			queryInfo.Name = currentTrack.Artist.Name
-		case "track":
-			queryInfo.Name = currentTrack.Name
-			queryInfo.ArtistName = currentTrack.Artist.Name
-		case "album":
-			queryInfo.Name = currentTrack.Album.Name
-			queryInfo.ArtistName = currentTrack.Artist.Name
 		}
 	}
 
-	enrichQueryInfo(queryInfo, ctx)
-
-	return queryInfo, nil
+	enrichQuery(query, ctx)
+	return query, nil
 }
 
-func getCurrentTrack(e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) (*types.UserGetRecentTracks, error) {
+func setQueryFromCurrentTrack(query *Query, e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) error {
 	currentUser, err := ctx.Database.GetUser(ctx.Context, e.Member().User.ID.String())
 	if err != nil {
-		return nil, errs.ErrUserNotFound
+		return errs.ErrUserNotFound
 	}
 
 	tracks, err := ctx.LastFM.User.GetRecentTracks(lfm.P{"user": currentUser, "limit": 1})
 	if err != nil || len(tracks.Tracks) == 0 || tracks.Tracks[0].NowPlaying != "true" {
-		return nil, errs.ErrCurrentTrackFetch
+		return errs.ErrCurrentTrackFetch
 	}
 
-	return tracks, nil
+	track := tracks.Tracks[0]
+	switch query.Type {
+	case "artist":
+		query.Name = track.Artist.Name
+	case "track":
+		query.Name = track.Name
+		query.ArtistName = track.Artist.Name
+	case "album":
+		query.Name = track.Album.Name
+		query.ArtistName = track.Artist.Name
+	}
+
+	return nil
 }
 
-func enrichQueryInfo(queryInfo *QueryInfo, ctx ctx.CommandContext) {
-	queryInfo.BetterName = queryInfo.Name
-	queryInfo.Thumbnail = "https://lastfm.freetls.fastly.net/i/u/avatar170s/818148bf682d429dc215c1705eb27b98.png"
+func enrichQuery(query *Query, ctx ctx.CommandContext) {
+	query.BetterName = query.Name
+	query.Thumbnail = "https://lastfm.freetls.fastly.net/i/u/avatar170s/818148bf682d429dc215c1705eb27b98.png"
 
-	switch queryInfo.Type {
+	switch query.Type {
 	case "artist":
-		if artist, err := ctx.LastFM.Artist.GetInfo(lfm.P{"artist": queryInfo.Name}); err == nil {
+		if artist, err := ctx.LastFM.Artist.GetInfo(lfm.P{"artist": query.Name}); err == nil {
 			if len(artist.Images) > 0 {
-				queryInfo.Thumbnail = artist.Images[len(artist.Images)-1].Url
+				query.Thumbnail = artist.Images[len(artist.Images)-1].Url
 			}
 			if artist.Name != "" {
-				queryInfo.BetterName = artist.Name
+				query.BetterName = artist.Name
 			}
 		}
 
 	case "track":
-		params := lfm.P{"track": queryInfo.Name}
-		if queryInfo.ArtistName != "" {
-			params["artist"] = queryInfo.ArtistName
+		params := lfm.P{"track": query.Name}
+		if query.ArtistName != "" {
+			params["artist"] = query.ArtistName
 		}
 		if track, err := ctx.LastFM.Track.GetInfo(params); err == nil {
 			if len(track.Album.Images) > 0 {
-				queryInfo.Thumbnail = track.Album.Images[len(track.Album.Images)-1].Url
+				query.Thumbnail = track.Album.Images[len(track.Album.Images)-1].Url
 			}
 			if track.Name != "" {
-				queryInfo.BetterName = track.Name
+				query.BetterName = track.Name
 			}
 		}
 
 	case "album":
-		params := lfm.P{"album": queryInfo.Name}
-		if queryInfo.ArtistName != "" {
-			params["artist"] = queryInfo.ArtistName
+		params := lfm.P{"album": query.Name}
+		if query.ArtistName != "" {
+			params["artist"] = query.ArtistName
 		}
 		if album, err := ctx.LastFM.Album.GetInfo(params); err == nil {
 			if len(album.Images) > 0 {
-				queryInfo.Thumbnail = album.Images[len(album.Images)-1].Url
+				query.Thumbnail = album.Images[len(album.Images)-1].Url
 			}
 			if album.Name != "" {
-				queryInfo.BetterName = album.Name
+				query.BetterName = album.Name
 			}
 		}
 	}
 }
 
-func getUserList(isGlobal bool, e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) (map[snowflake.ID]string, error) {
+func getUsers(isGlobal bool, e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) (map[snowflake.ID]string, error) {
 	if isGlobal {
-		return getAllRegisteredUsers(ctx)
+		return getAllUsers(ctx)
 	}
 	return ctx.LastFM.User.GetUsersByGuild(ctx.Context, e, ctx.Database)
 }
 
-func getAllRegisteredUsers(ctx ctx.CommandContext) (map[snowflake.ID]string, error) {
+func getAllUsers(ctx ctx.CommandContext) (map[snowflake.ID]string, error) {
 	if cached, ok := ctx.Cache.Members.Get(snowflake.ID(0)); ok {
 		return cached, nil
 	}
@@ -254,26 +252,25 @@ func getAllRegisteredUsers(ctx ctx.CommandContext) (map[snowflake.ID]string, err
 		}
 	}
 
-	ctx.Cache.Members.Set(snowflake.ID(0), result, 5*time.Minute)
-
+	ctx.Cache.Members.Set(snowflake.ID(0), result, 0)
 	return result, nil
 }
 
-func fetchPlayCounts(queryInfo *QueryInfo, users map[snowflake.ID]string, maxWorkers int, ctx ctx.CommandContext) []PlayResult {
+func fetchPlayCounts(query *Query, users map[snowflake.ID]string, ctx ctx.CommandContext) []Result {
 	if len(users) == 0 {
 		return nil
 	}
 
-	workerLimit := min(maxWorkers, 20)
-	sem := make(chan struct{}, workerLimit)
+	workerCount := min(len(users), maxWorkers)
+	sem := make(chan struct{}, workerCount)
 
 	var (
-		results []PlayResult
+		results []Result
 		mu      sync.Mutex
 		wg      sync.WaitGroup
 	)
 
-	ctx_timeout, cancel := context.WithTimeout(ctx.Context, 30*time.Second)
+	ctx_timeout, cancel := context.WithTimeout(ctx.Context, timeout)
 	defer cancel()
 
 	for userID, username := range users {
@@ -283,10 +280,7 @@ func fetchPlayCounts(queryInfo *QueryInfo, users map[snowflake.ID]string, maxWor
 		default:
 		}
 
-		wg.Add(1)
-		go func(id snowflake.ID, user string) {
-			defer wg.Done()
-
+		wg.Go(func() {
 			select {
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
@@ -294,17 +288,17 @@ func fetchPlayCounts(queryInfo *QueryInfo, users map[snowflake.ID]string, maxWor
 				return
 			}
 
-			count := fetchUserPlayCount(queryInfo, user, ctx)
+			count := getUserPlayCount(query, username, ctx)
 			if count > 0 {
 				mu.Lock()
-				results = append(results, PlayResult{
-					UserID:    id.String(),
-					Username:  user,
+				results = append(results, Result{
+					UserID:    userID.String(),
+					Username:  username,
 					PlayCount: count,
 				})
 				mu.Unlock()
 			}
-		}(userID, username)
+		})
 	}
 
 done:
@@ -312,15 +306,15 @@ done:
 	return results
 }
 
-func fetchUserPlayCount(queryInfo *QueryInfo, username string, ctx ctx.CommandContext) int {
+func getUserPlayCount(query *Query, username string, ctx ctx.CommandContext) int {
 	params := lfm.P{
 		"user": username,
-		"name": queryInfo.Name,
-		"type": queryInfo.Type,
+		"name": query.Name,
+		"type": query.Type,
 	}
 
-	if queryInfo.ArtistName != "" {
-		params["artist"] = queryInfo.ArtistName
+	if query.ArtistName != "" {
+		params["artist"] = query.ArtistName
 	}
 
 	count, err := ctx.LastFM.User.GetPlays(params)
@@ -330,23 +324,19 @@ func fetchUserPlayCount(queryInfo *QueryInfo, username string, ctx ctx.CommandCo
 	return count
 }
 
-func sendWhoKnowsResponse(e *events.ApplicationCommandInteractionCreate, reply *reply.ResponseBuilder, queryInfo *QueryInfo, results []PlayResult, options CommandOptions) {
+func sendResponse(e *events.ApplicationCommandInteractionCreate, r *reply.ResponseBuilder, query *Query, results []Result, options Options) {
 	scope := "in this server"
 	if options.IsGlobal {
 		scope = "globally"
-	} else {
-		guild, ok := e.Guild()
-		if ok {
-			scope = fmt.Sprintf("in %s", guild.Name)
-		}
+	} else if guild, ok := e.Guild(); ok {
+		scope = fmt.Sprintf("in %s", guild.Name)
 	}
 
-	title := fmt.Sprintf("### Who knows %s **%s** %s?", queryInfo.Type, queryInfo.BetterName, scope)
-
+	title := fmt.Sprintf("### Who knows %s **%s** %s?", query.Type, query.BetterName, scope)
 	list := buildResultsList(results, options.Limit)
 
 	color := 0x00ADD8
-	if dominantColor, err := image.DominantColor(queryInfo.Thumbnail); err == nil {
+	if dominantColor, err := image.DominantColor(query.Thumbnail); err == nil {
 		color = dominantColor
 	}
 
@@ -354,25 +344,31 @@ func sendWhoKnowsResponse(e *events.ApplicationCommandInteractionCreate, reply *
 		discord.NewSection(
 			discord.NewTextDisplay(title),
 			discord.NewTextDisplay(list),
-		).WithAccessory(discord.NewThumbnail(queryInfo.Thumbnail)),
+		).WithAccessory(discord.NewThumbnail(query.Thumbnail)),
 	).WithAccentColor(color)
 
-	reply.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
+	r.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
 }
 
-func buildResultsList(results []PlayResult, limit int) string {
+func buildResultsList(results []Result, limit int) string {
 	if len(results) == 0 {
-		return "No listeners found."
+		return "no listeners found."
 	}
 
+	displayCount := min(len(results), limit)
 	list := ""
-	displayLimit := min(len(results), limit)
 
-	for i := range displayLimit {
+	for i := range displayCount {
 		r := results[i]
+		count := i + 1
+		crown := ""
+		if count == 1 {
+			crown = " " + emojis.EmojiCrown
+		}
+
 		list += fmt.Sprintf(
-			"%d. [%s](<https://www.last.fm/user/%s>) (*<@%s>*) — **%d** plays\n",
-			i+1, r.Username, r.Username, r.UserID, r.PlayCount,
+			"%d. [%s%s](<https://www.last.fm/user/%s>) (*<@%s>*) — **%d** plays\n",
+			i+1, r.Username, crown, r.Username, r.UserID, r.PlayCount,
 		)
 	}
 

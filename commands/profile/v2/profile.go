@@ -15,6 +15,7 @@ import (
 
 	"go.fm/lfm"
 	"go.fm/lfm/types"
+	"go.fm/logger"
 	"go.fm/pkg/bild/blur"
 	"go.fm/pkg/bild/font"
 	"go.fm/pkg/bild/imgio"
@@ -28,9 +29,16 @@ import (
 )
 
 var inter *font.Font
+var gradient image.Image
 
 func init() {
 	inter = font.LoadFont("assets/font/Inter_24pt-Regular.ttf")
+	gradientImage, err := imgio.Open("assets/img/profile_gradient.png")
+	if err != nil {
+		logger.Log.Fatalf("missing profile gradient image")
+	}
+	gradient = gradientImage
+	logger.Log.Debug("loaded profile gradient and font")
 }
 
 type Command struct{}
@@ -124,12 +132,6 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 	runtime.ReadMemStats(&mStart)
 
 	// - start memory measure -
-	gradientData, err := imgio.Open("assets/img/profile_gradient.png")
-	if err != nil {
-		reply.Error(e, fmt.Errorf("failed to load gradient background: %w", err))
-		return
-	}
-
 	userAvatar := user.Images[len(user.Images)-1].Url
 	data, err := imgio.Fetch(userAvatar)
 	if err != nil {
@@ -154,7 +156,6 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 	bgImage = blur.Gaussian(bgImage, 20)
 	draw.Draw(canvas, canvas.Bounds(), bgImage, image.Point{0, 0}, draw.Over)
 
-	gradient := transform.Resize(gradientData, canvasWidth, canvasHeight, transform.Linear)
 	draw.Draw(canvas, canvas.Bounds(), gradient, image.Point{0, 0}, draw.Over)
 
 	avatarImage = transform.Resize(avatarImage, avatarSize, avatarSize, transform.Gaussian)
