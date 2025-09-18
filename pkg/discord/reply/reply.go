@@ -80,7 +80,7 @@ func (r *ResponseBuilder) FollowUp() error {
 	return err
 }
 
-func (r *ResponseBuilder) Send() error {
+func (r *ResponseBuilder) Send() {
 	_, err := r.e.Client().Rest.UpdateInteractionResponse(
 		r.e.ApplicationID(),
 		r.e.Token(),
@@ -93,10 +93,12 @@ func (r *ResponseBuilder) Send() error {
 			AllowedMentions: &discord.AllowedMentions{},
 		},
 	)
-	return err
+	if err != nil {
+		Error(r.e, err)
+	}
 }
 
-func (r *ResponseBuilder) Edit() error {
+func (r *ResponseBuilder) Edit() {
 	_, err := r.e.Client().Rest.UpdateInteractionResponse(
 		r.e.ApplicationID(),
 		r.e.Token(),
@@ -109,7 +111,9 @@ func (r *ResponseBuilder) Edit() error {
 			AllowedMentions: &discord.AllowedMentions{},
 		},
 	)
-	return err
+	if err != nil {
+		Error(r.e, err)
+	}
 }
 
 func QuickEmbed(title, description string) discord.Embed {
@@ -120,11 +124,11 @@ func QuickEmbed(title, description string) discord.Embed {
 		Build()
 }
 
-func Error(e *events.ApplicationCommandInteractionCreate, err error) error {
+func Error(e *events.ApplicationCommandInteractionCreate, err error) {
 	embed := QuickEmbed(fmt.Sprintf("%s error", emojis.EmojiCross), err.Error())
 	embed.Color = 0xE74C3C
 
-	return New(e).
+	New(e).
 		Embed(embed).
 		Send()
 }
