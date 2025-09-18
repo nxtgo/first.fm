@@ -93,7 +93,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			if i > limit {
 				break
 			}
-			description += fmt.Sprintf("%d. [%s](%s) — **%s** plays\n", i+1, a.Name, a.Url, a.PlayCount)
+			description += fmt.Sprintf("%d. %s — **%s** plays\n", i+1, a.Name, a.PlayCount)
 		}
 
 	case "track":
@@ -110,7 +110,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			if i > limit {
 				break
 			}
-			description += fmt.Sprintf("%d. [%s](%s) — *%s* (**%s** plays)\n", i+1, t.Name, t.Url, t.Artist.Name, t.PlayCount)
+			description += fmt.Sprintf("%d. %s — *%s* (**%s** plays)\n", i+1, t.Name, t.Artist.Name, t.PlayCount)
 		}
 
 	case "album":
@@ -127,7 +127,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			if i > limit {
 				break
 			}
-			description += fmt.Sprintf("%d. [%s](%s) — *%s* (**%s** plays)\n", i+1, a.Name, a.Url, a.Artist.Name, a.PlayCount)
+			description += fmt.Sprintf("%d. %s — *%s* (**%s** plays)\n", i+1, a.Name, a.Artist.Name, a.PlayCount)
 		}
 	}
 
