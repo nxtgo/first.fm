@@ -23,7 +23,9 @@ func Table(headers []string, rows [][]string) string {
 		return s + strings.Repeat(" ", width-len(s))
 	}
 
+	approxSize := len(headers)*10 + len(rows)*50
 	var b strings.Builder
+	b.Grow(approxSize)
 
 	for i, h := range headers {
 		if i > 0 {

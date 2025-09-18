@@ -66,8 +66,8 @@ func NewCache() *Cache {
 			gce.WithMaxEntries(50_000),
 		),
 		Cover: gce.New[string, string](
-			gce.WithDefaultTTL(time.Hour*24*365),
-			gce.WithMaxEntries(100_000),
+			gce.WithDefaultTTL(time.Hour*24*7),
+			gce.WithMaxEntries(10_000),
 		),
 	}
 }

@@ -1,4 +1,4 @@
-package image
+package colors
 
 import (
 	"fmt"
@@ -6,25 +6,35 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"net/http"
 	"sync/atomic"
+	"time"
 
 	"go.fm/pkg/bild/parallel"
 )
 
-func DominantColor(url string) (int, error) {
-	resp, err := http.Get(url)
+func Dominant(url string) (int, error) {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Get(url)
 	if err != nil {
 		return 0, err
 	}
 	defer resp.Body.Close()
 
-	img, _, err := image.Decode(resp.Body)
+	limitedReader := &io.LimitedReader{R: resp.Body, N: 10 << 20}
+
+	img, _, err := image.Decode(limitedReader)
 	if err != nil {
 		return 0, err
 	}
 
 	bounds := img.Bounds()
+	if bounds.Dx() > 4000 || bounds.Dy() > 4000 {
+		return 0x00ADD8, nil
+	}
 	height := bounds.Dy()
 
 	var rTotal, gTotal, bTotal, count uint64

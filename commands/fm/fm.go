@@ -6,12 +6,12 @@ import (
 
 	"go.fm/lfm"
 	"go.fm/lfm/types"
+	"go.fm/pkg/bild/colors"
 	"go.fm/pkg/constants/emojis"
 	"go.fm/pkg/constants/errs"
 	"go.fm/pkg/constants/opts"
 	"go.fm/pkg/ctx"
 	"go.fm/pkg/discord/reply"
-	"go.fm/pkg/image"
 )
 
 type Command struct{}
@@ -70,7 +70,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 		trackData = &types.TrackGetInfo{UserPlayCount: 0}
 	}
 
-	color, err := image.DominantColor(thumbnail)
+	color, err := colors.Dominant(thumbnail)
 	if err != nil {
 		color = 0x00ADD8
 	}

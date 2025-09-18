@@ -6,7 +6,10 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/debug"
 	"syscall"
+	"time"
 
 	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
@@ -33,6 +36,7 @@ var (
 )
 
 func init() {
+	debug.SetMemoryLimit(1 << 30)
 	if err := env.Load(""); err != nil {
 		logger.Log.Fatalf("failed loading environment: %v", err)
 	}
@@ -44,6 +48,21 @@ func init() {
 }
 
 func main() {
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+
+			if m.Alloc > 500*1024*1024 {
+				logger.Log.Warnf("high memory usage: %d MB", m.Alloc/1024/1024)
+				runtime.GC()
+			}
+		}
+	}()
+
 	ctx := context.Background()
 
 	token := os.Getenv("DISCORD_TOKEN")
@@ -95,15 +114,20 @@ func initDatabase(ctx context.Context, path string) (func() error, *db.Queries) 
 	}
 
 	if _, err := dbConn.ExecContext(ctx, db.Schema); err != nil {
+		dbConn.Close()
 		logger.Log.Fatalf("failed executing schema: %v", err)
 	}
 
-	_, err = db.Prepare(ctx, dbConn)
+	queries, err := db.Prepare(ctx, dbConn)
 	if err != nil {
+		dbConn.Close()
 		logger.Log.Fatalf("failed preparing queries: %v", err)
 	}
 
-	return dbConn.Close, db.New(dbConn)
+	return func() error {
+		queries.Close()
+		return dbConn.Close()
+	}, queries
 }
 
 func initDiscordClient(token string) *bot.Client {

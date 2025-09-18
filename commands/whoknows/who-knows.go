@@ -15,11 +15,11 @@ import (
 	"github.com/disgoorg/snowflake/v2"
 
 	"go.fm/lfm"
+	"go.fm/pkg/bild/colors"
 	"go.fm/pkg/constants/emojis"
 	"go.fm/pkg/constants/errs"
 	"go.fm/pkg/ctx"
 	"go.fm/pkg/discord/reply"
-	"go.fm/pkg/image"
 )
 
 var (
@@ -279,14 +279,18 @@ func fetchPlayCounts(query *Query, users map[snowflake.ID]string, ctx ctx.Comman
 	ctx_timeout, cancel := context.WithTimeout(ctx.Context, timeout)
 	defer cancel()
 
+loop:
 	for userID, username := range users {
 		select {
 		case <-ctx_timeout.Done():
-			goto done
+			break loop
 		default:
 		}
 
-		wg.Go(func() {
+		wg.Add(1)
+		go func(userID snowflake.ID, username string) {
+			defer wg.Done()
+
 			select {
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
@@ -304,11 +308,20 @@ func fetchPlayCounts(query *Query, users map[snowflake.ID]string, ctx ctx.Comman
 				})
 				mu.Unlock()
 			}
-		})
+		}(userID, username)
 	}
 
-done:
-	wg.Wait()
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-ctx_timeout.Done():
+	}
+
 	return results
 }
 
@@ -342,7 +355,7 @@ func sendResponse(e *events.ApplicationCommandInteractionCreate, r *reply.Respon
 	list := buildResultsList(results, options.Limit)
 
 	color := 0x00ADD8
-	if dominantColor, err := image.DominantColor(query.Thumbnail); err == nil {
+	if dominantColor, err := colors.Dominant(query.Thumbnail); err == nil {
 		color = dominantColor
 	}
 

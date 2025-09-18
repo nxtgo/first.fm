@@ -6,7 +6,6 @@ import (
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
-	"github.com/nxtgo/zlog"
 
 	"go.fm/commands/botinfo"
 	"go.fm/commands/fm"
@@ -63,32 +62,18 @@ func InitDependencies(ctx ctx.CommandContext) {
 	sharedCtx = ctx
 }
 
+var commandSemaphore = make(chan struct{}, 100)
+
 func Handler() bot.EventListener {
 	return &events.ListenerAdapter{
+
 		OnApplicationCommandInteraction: func(e *events.ApplicationCommandInteractionCreate) {
 			if cmd, ok := registry[e.Data.CommandName()]; ok {
-				go cmd.Handle(e, sharedCtx)
-
-				// logger stuff, may be removed later
-				guildName := "user_app"
-				guildId := "nil"
-				guild, ok := e.Client().Caches.Guild(*e.GuildID())
-				if ok {
-					guildName = guild.Name
-					guildId = guild.ID.String()
-				}
-
-				logger.Log.Debugw(
-					"executed command %s",
-					zlog.F{
-						"guild_name":  guildName,
-						"guild_id":    guildId,
-						"author_name": e.Member().User.Username,
-						"author_id":   e.Member().User.ID.String(),
-					},
-					cmd.Data().CommandName(),
-				)
+				go func() {
+					commandSemaphore <- struct{}{}
+					defer func() { <-commandSemaphore }()
+					cmd.Handle(e, sharedCtx)
+				}()
 			}
-		},
-	}
+		}}
 }
