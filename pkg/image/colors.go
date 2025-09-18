@@ -7,6 +7,9 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"net/http"
+	"sync/atomic"
+
+	"go.fm/pkg/bild/parallel"
 )
 
 func DominantColor(url string) (int, error) {
@@ -22,17 +25,26 @@ func DominantColor(url string) (int, error) {
 	}
 
 	bounds := img.Bounds()
-	var rTotal, gTotal, bTotal, count uint32
+	height := bounds.Dy()
 
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			r, g, b, _ := img.At(x, y).RGBA()
-			rTotal += r >> 8
-			gTotal += g >> 8
-			bTotal += b >> 8
-			count++
+	var rTotal, gTotal, bTotal, count uint64
+
+	parallel.Line(height, func(start, end int) {
+		var rLocal, gLocal, bLocal, cLocal uint64
+		for y := start; y < end; y++ {
+			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+				r, g, b, _ := img.At(x, y).RGBA()
+				rLocal += uint64(r >> 8)
+				gLocal += uint64(g >> 8)
+				bLocal += uint64(b >> 8)
+				cLocal++
+			}
 		}
-	}
+		atomic.AddUint64(&rTotal, rLocal)
+		atomic.AddUint64(&gTotal, gLocal)
+		atomic.AddUint64(&bTotal, bLocal)
+		atomic.AddUint64(&count, cLocal)
+	})
 
 	if count == 0 {
 		return 0, fmt.Errorf("image has no pixels")

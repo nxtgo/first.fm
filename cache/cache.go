@@ -20,6 +20,7 @@ type Cache struct {
 	TopTracks  *gce.Cache[string, types.UserGetTopTracks]
 	Tracks     *gce.Cache[string, types.UserGetRecentTracks]
 	Plays      *gce.Cache[string, int]
+	Cover      *gce.Cache[string, string]
 }
 
 func NewCache() *Cache {
@@ -63,6 +64,10 @@ func NewCache() *Cache {
 		Plays: gce.New[string, int](
 			gce.WithDefaultTTL(time.Minute*15),
 			gce.WithMaxEntries(50_000),
+		),
+		Cover: gce.New[string, string](
+			gce.WithDefaultTTL(time.Hour*24*365),
+			gce.WithMaxEntries(100_000),
 		),
 	}
 }
@@ -109,6 +114,9 @@ func (c *Cache) Stats() []CacheStats {
 	if c.Plays != nil {
 		add("Plays", c.Plays.Stats())
 	}
+	if c.Plays != nil {
+		add("Cover", c.Cover.Stats())
+	}
 
 	return out
 }
@@ -143,5 +151,8 @@ func (c *Cache) Close() {
 	}
 	if c.Plays != nil {
 		c.Plays.Close()
+	}
+	if c.Cover != nil {
+		c.Cover.Close()
 	}
 }

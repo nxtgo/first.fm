@@ -2,7 +2,10 @@ package whoknows
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"sort"
 	"sync"
 	"time"
@@ -191,7 +194,10 @@ func enrichQuery(query *Query, ctx ctx.CommandContext) {
 	case "artist":
 		if artist, err := ctx.LastFM.Artist.GetInfo(lfm.P{"artist": query.Name}); err == nil {
 			if len(artist.Images) > 0 {
-				query.Thumbnail = artist.Images[len(artist.Images)-1].Url
+				artistImage, err := getArtistImage(ctx, artist.Name)
+				if err == nil {
+					query.Thumbnail = artistImage
+				}
 			}
 			if artist.Name != "" {
 				query.BetterName = artist.Name
@@ -325,14 +331,14 @@ func getUserPlayCount(query *Query, username string, ctx ctx.CommandContext) int
 }
 
 func sendResponse(e *events.ApplicationCommandInteractionCreate, r *reply.ResponseBuilder, query *Query, results []Result, options Options) {
-	scope := "In this server"
+	scope := "in this server"
 	if options.IsGlobal {
-		scope = "Globally"
+		scope = "globally"
 	} else if guild, ok := e.Guild(); ok {
-		scope = fmt.Sprintf("In %s", guild.Name)
+		scope = fmt.Sprintf("in %s", guild.Name)
 	}
 
-	title := fmt.Sprintf("# %s\n-# *%s*", query.BetterName, scope)
+	title := fmt.Sprintf("# %s\n-# Who knows %s %s %s?", query.BetterName, query.Type, query.BetterName, scope)
 	list := buildResultsList(results, options.Limit)
 
 	color := 0x00ADD8
@@ -382,9 +388,48 @@ func buildResultsList(results []Result, limit int) string {
 		)
 	}
 
+	if len(results) == 1 {
+		list += "\n*this is pretty empty...*"
+	}
+
 	if len(results) > limit {
 		list += fmt.Sprintf("\n*...and %d more listeners*", len(results)-limit)
 	}
 
 	return list
+}
+
+func getArtistImage(ctx ctx.CommandContext, name string) (string, error) {
+	name = url.QueryEscape(name)
+
+	if v, ok := ctx.Cache.Cover.Get(name); ok {
+		return v, nil
+	}
+	endpoint := "https://api.deezer.com/search/artist?q=" + name
+
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Data []struct {
+			PictureXL string `json:"picture_xl"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	if len(result.Data) == 0 {
+		return "", fmt.Errorf("no artist found")
+	}
+
+	image := result.Data[0].PictureXL
+
+	ctx.Cache.Cover.Set(name, image, 0)
+
+	return image, nil
 }
