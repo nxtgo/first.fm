@@ -180,7 +180,7 @@ func uploadGuildCommands(client bot.Client) {
 	guildId := snowflake.GetEnv("GUILD_ID")
 	_, err := client.Rest.SetGuildCommands(client.ApplicationID, guildId, commands.All())
 	if err != nil {
-		logger.Log.Fatalf("failed registering global commands: %v", err)
+		logger.Log.Fatalf("failed registering guild commands: %v", err)
 	}
 	logger.Log.Infof("registered guild slash commands to guild '%s'", guildId.String())
 }

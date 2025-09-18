@@ -9,23 +9,25 @@ import (
 func Table(headers []string, rows [][]string) string {
 	colWidths := make([]int, len(headers))
 	for i, h := range headers {
-		colWidths[i] = len(h)
+		colWidths[i] = utf8.RuneCountInString(h)
 	}
 	for _, row := range rows {
 		for i, cell := range row {
-			if len(cell) > colWidths[i] {
-				colWidths[i] = len(cell)
+			if w := utf8.RuneCountInString(cell); w > colWidths[i] {
+				colWidths[i] = w
 			}
 		}
 	}
 
 	pad := func(s string, width int) string {
-		return s + strings.Repeat(" ", width-len(s))
+		l := utf8.RuneCountInString(s)
+		if l >= width {
+			return s
+		}
+		return s + strings.Repeat(" ", width-l)
 	}
 
-	approxSize := len(headers)*10 + len(rows)*50
 	var b strings.Builder
-	b.Grow(approxSize)
 
 	for i, h := range headers {
 		if i > 0 {

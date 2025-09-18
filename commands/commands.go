@@ -10,7 +10,8 @@ import (
 	"go.fm/commands/botinfo"
 	"go.fm/commands/fm"
 	"go.fm/commands/profile"
-	profilev2 "go.fm/commands/profile/v2"
+
+	// profilev2 "go.fm/commands/profile/v2"
 	"go.fm/commands/setuser"
 	"go.fm/commands/top"
 	"go.fm/commands/update"
@@ -43,7 +44,9 @@ func init() {
 	Register(top.Command{})
 	Register(update.Command{})
 	Register(botinfo.Command{})
-	Register(profilev2.Command{})
+
+	// wip.
+	// Register(profilev2.Command{})
 }
 
 type Command interface {
