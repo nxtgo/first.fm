@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	_ "embed"
 	"flag"
 	"os"
 	"os/signal"
@@ -12,6 +11,8 @@ import (
 	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
 	dgocache "github.com/disgoorg/disgo/cache"
+	"github.com/disgoorg/disgo/discord"
+	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/snowflake/v2"
 	_ "github.com/mattn/go-sqlite3"
@@ -24,9 +25,6 @@ import (
 	"go.fm/logger"
 	gofmCtx "go.fm/pkg/ctx"
 )
-
-//go:embed db/sql/schema.sql
-var ddl string
 
 var (
 	globalCmds     bool
@@ -96,7 +94,7 @@ func initDatabase(ctx context.Context, path string) (func() error, *db.Queries) 
 		logger.Log.Fatalf("failed opening database: %v", err)
 	}
 
-	if _, err := dbConn.ExecContext(ctx, ddl); err != nil {
+	if _, err := dbConn.ExecContext(ctx, db.Schema); err != nil {
 		logger.Log.Fatalf("failed executing schema: %v", err)
 	}
 
@@ -124,7 +122,19 @@ func initDiscordClient(token string) *bot.Client {
 	client, err := disgo.New(
 		token,
 		options,
-		bot.WithEventListeners(commands.Handler()),
+		bot.WithEventListeners(
+			commands.Handler(),
+			bot.NewListenerFunc(func(r *events.Ready) {
+				logger.Log.Info("client ready v/")
+				if err := r.Client().SetPresence(context.TODO(),
+					//gateway.WithListeningActivity("your scrobbles <3"),
+					gateway.WithCustomActivity("xd"),
+					gateway.WithOnlineStatus(discord.OnlineStatusOnline),
+				); err != nil {
+					logger.Log.Errorf("failed to set presence: %s", err)
+				}
+			}),
+		),
 		cacheOptions,
 	)
 	if err != nil {

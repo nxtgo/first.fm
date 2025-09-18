@@ -5,6 +5,7 @@ import (
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+	"go.fm/pkg/constants/emojis"
 )
 
 type ResponseBuilder struct {
@@ -14,6 +15,7 @@ type ResponseBuilder struct {
 	components []discord.LayoutComponent
 	flags      discord.MessageFlags
 	ephemeral  bool
+	files      []*discord.File
 }
 
 func New(e *events.ApplicationCommandInteractionCreate) *ResponseBuilder {
@@ -32,6 +34,11 @@ func (r *ResponseBuilder) Content(msg string, a ...any) *ResponseBuilder {
 
 func (r *ResponseBuilder) Flags(flags discord.MessageFlags) *ResponseBuilder {
 	r.flags = flags
+	return r
+}
+
+func (r *ResponseBuilder) File(file *discord.File) *ResponseBuilder {
+	r.files = append(r.files, file)
 	return r
 }
 
@@ -58,6 +65,7 @@ func (r *ResponseBuilder) FollowUp() error {
 	msg := discord.MessageCreate{
 		Content:         *r.content,
 		Embeds:          r.embeds,
+		Files:           r.files,
 		AllowedMentions: &discord.AllowedMentions{},
 	}
 	if r.ephemeral {
@@ -72,7 +80,7 @@ func (r *ResponseBuilder) FollowUp() error {
 	return err
 }
 
-func (r *ResponseBuilder) Send() error {
+func (r *ResponseBuilder) Send() {
 	_, err := r.e.Client().Rest.UpdateInteractionResponse(
 		r.e.ApplicationID(),
 		r.e.Token(),
@@ -80,14 +88,17 @@ func (r *ResponseBuilder) Send() error {
 			Components:      &r.components,
 			Content:         r.content,
 			Embeds:          &r.embeds,
+			Files:           r.files,
 			Flags:           &r.flags,
 			AllowedMentions: &discord.AllowedMentions{},
 		},
 	)
-	return err
+	if err != nil {
+		Error(r.e, err)
+	}
 }
 
-func (r *ResponseBuilder) Edit() error {
+func (r *ResponseBuilder) Edit() {
 	_, err := r.e.Client().Rest.UpdateInteractionResponse(
 		r.e.ApplicationID(),
 		r.e.Token(),
@@ -95,11 +106,14 @@ func (r *ResponseBuilder) Edit() error {
 			Components:      &r.components,
 			Flags:           &r.flags,
 			Content:         r.content,
+			Files:           r.files,
 			Embeds:          &r.embeds,
 			AllowedMentions: &discord.AllowedMentions{},
 		},
 	)
-	return err
+	if err != nil {
+		Error(r.e, err)
+	}
 }
 
 func QuickEmbed(title, description string) discord.Embed {
@@ -110,11 +124,11 @@ func QuickEmbed(title, description string) discord.Embed {
 		Build()
 }
 
-func Error(e *events.ApplicationCommandInteractionCreate, err error) error {
-	embed := QuickEmbed("❌ error", err.Error())
+func Error(e *events.ApplicationCommandInteractionCreate, err error) {
+	embed := QuickEmbed(fmt.Sprintf("%s error", emojis.EmojiCross), err.Error())
 	embed.Color = 0xE74C3C
 
-	return New(e).
+	New(e).
 		Embed(embed).
 		Send()
 }

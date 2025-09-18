@@ -20,16 +20,17 @@ type Cache struct {
 	TopTracks  *gce.Cache[string, types.UserGetTopTracks]
 	Tracks     *gce.Cache[string, types.UserGetRecentTracks]
 	Plays      *gce.Cache[string, int]
+	Cover      *gce.Cache[string, string]
 }
 
 func NewCache() *Cache {
 	return &Cache{
 		User: gce.New[string, types.UserGetInfo](
-			gce.WithDefaultTTL(time.Minute),
+			gce.WithDefaultTTL(time.Hour),
 			gce.WithMaxEntries(50_000),
 		),
 		Members: gce.New[snowflake.ID, map[snowflake.ID]string](
-			gce.WithDefaultTTL(time.Minute*10),
+			gce.WithDefaultTTL(time.Hour*6),
 			gce.WithMaxEntries(2000),
 		),
 		Album: gce.New[string, types.AlbumGetInfo](
@@ -63,6 +64,10 @@ func NewCache() *Cache {
 		Plays: gce.New[string, int](
 			gce.WithDefaultTTL(time.Minute*15),
 			gce.WithMaxEntries(50_000),
+		),
+		Cover: gce.New[string, string](
+			gce.WithDefaultTTL(time.Hour*24*365),
+			gce.WithMaxEntries(100_000),
 		),
 	}
 }
@@ -109,6 +114,9 @@ func (c *Cache) Stats() []CacheStats {
 	if c.Plays != nil {
 		add("Plays", c.Plays.Stats())
 	}
+	if c.Plays != nil {
+		add("Cover", c.Cover.Stats())
+	}
 
 	return out
 }
@@ -143,5 +151,8 @@ func (c *Cache) Close() {
 	}
 	if c.Plays != nil {
 		c.Plays.Close()
+	}
+	if c.Cover != nil {
+		c.Cover.Close()
 	}
 }

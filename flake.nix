@@ -29,6 +29,29 @@
     {
       overlays.default = final: prev: {
         go = final."go_1_${toString goVersion}";
+        golangci-lint = prev.golangci-lint.overrideAttrs (old: rec {
+          version = "2.4.0";
+
+          src = prev.fetchFromGitHub {
+            owner = "golangci";
+            repo = "golangci-lint";
+            rev = "v${version}";
+            hash = "sha256-L0TsVOUSU+nfxXyWsFLe+eU4ZxWbW3bHByQVatsTpXA=";
+          };
+
+          vendorHash = "sha256-tYoAUumnHgA8Al3jKjS8P/ZkUlfbmmmBcJYUR7+5u9w=";
+
+          ldflags = [
+            "-s"
+            "-X main.version=${version}"
+            "-X main.commit=v${version}"
+            "-X main.date=19700101-00:00:00"
+          ];
+
+          meta = old.meta // {
+            changelog = "https://github.com/golangci/golangci-lint/blob/v${version}/CHANGELOG.md";
+          };
+        });
       };
 
       devShells = forEachSupportedSystem (

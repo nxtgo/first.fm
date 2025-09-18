@@ -17,14 +17,8 @@ func (t *trackApi) GetInfo(args P) (*types.TrackGetInfo, error) {
 		return &cached, nil
 	}
 
-	req := t.api.baseRequest("track.getinfo", args)
-	data, err := req.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
 	var result types.TrackGetInfo
-	if err := decodeResponse(data, &result); err != nil {
+	if err := t.api.doAndDecode("track.getinfo", args, &result); err != nil {
 		return nil, err
 	}
 

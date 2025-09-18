@@ -6,6 +6,8 @@ import (
 	"github.com/disgoorg/snowflake/v2"
 
 	"go.fm/lfm"
+	"go.fm/lfm/types"
+	"go.fm/pkg/constants/emojis"
 	"go.fm/pkg/constants/errs"
 	"go.fm/pkg/constants/opts"
 	"go.fm/pkg/ctx"
@@ -41,47 +43,81 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 		return
 	}
 
-	if ctx.Cache != nil {
-		if ctx.Cache.User != nil {
-			ctx.Cache.User.Delete(username)
-		}
-		if ctx.Cache.TopArtists != nil {
-			ctx.Cache.TopArtists.Delete(username)
-		}
-		if ctx.Cache.TopAlbums != nil {
-			ctx.Cache.TopAlbums.Delete(username)
-		}
-		if ctx.Cache.TopTracks != nil {
-			ctx.Cache.TopTracks.Delete(username)
-		}
-		if e.GuildID() != nil && ctx.Cache.Members != nil {
-			members, _ := ctx.Cache.Members.Get(*e.GuildID())
-			if members != nil {
-				delete(members, e.User().ID)
-				ctx.Cache.Members.Set(*e.GuildID(), members, 0)
-			}
-		}
-	}
+	clearUserCaches(username, ctx)
+	clearMemberCache(e, ctx)
 
-	userInfo, err := ctx.LastFM.User.GetInfo(lfm.P{
-		"user": username,
-	})
+	userInfo, err := fetchUserInfo(username, ctx)
 	if err != nil {
 		reply.Error(e, errs.ErrUserNotFound)
 		return
 	}
-	ctx.Cache.User.Set(username, *userInfo, 0)
 
-	if e.GuildID() != nil && ctx.Cache.Members != nil {
-		members, _ := ctx.Cache.Members.Get(*e.GuildID())
-		if members == nil {
-			members = make(map[snowflake.ID]string)
-		}
-		members[e.User().ID] = username
-		ctx.Cache.Members.Set(*e.GuildID(), members, 0)
-	}
+	updateCaches(e, username, userInfo, ctx)
 
 	go ctx.LastFM.User.PrefetchUserData(username)
 
-	r.Content("updated your data with fresh one :)").Edit()
+	r.Content("updated and cached your data! %s", emojis.EmojiUpdate).Edit()
+}
+
+func clearUserCaches(username string, ctx ctx.CommandContext) {
+	if ctx.Cache == nil {
+		return
+	}
+
+	caches := []interface {
+		Delete(string)
+	}{
+		ctx.Cache.User,
+		ctx.Cache.TopArtists,
+		ctx.Cache.TopAlbums,
+		ctx.Cache.TopTracks,
+	}
+
+	for _, cache := range caches {
+		if cache != nil {
+			cache.Delete(username)
+		}
+	}
+}
+
+func clearMemberCache(e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) {
+	guildID := e.GuildID()
+	if guildID == nil || ctx.Cache.Members == nil {
+		return
+	}
+
+	members, exists := ctx.Cache.Members.Get(*guildID)
+	if !exists || members == nil {
+		return
+	}
+
+	delete(members, e.User().ID)
+	ctx.Cache.Members.Set(*guildID, members, 0)
+}
+
+func fetchUserInfo(username string, ctx ctx.CommandContext) (*types.UserGetInfo, error) {
+	return ctx.LastFM.User.GetInfo(lfm.P{"user": username})
+}
+
+func updateCaches(e *events.ApplicationCommandInteractionCreate, username string, userInfo *types.UserGetInfo, ctx ctx.CommandContext) {
+	if ctx.Cache.User != nil {
+		ctx.Cache.User.Set(username, *userInfo, 0)
+	}
+
+	updateGuildMemberCache(e, username, ctx)
+}
+
+func updateGuildMemberCache(e *events.ApplicationCommandInteractionCreate, username string, ctx ctx.CommandContext) {
+	guildID := e.GuildID()
+	if guildID == nil || ctx.Cache.Members == nil {
+		return
+	}
+
+	members, _ := ctx.Cache.Members.Get(*guildID)
+	if members == nil {
+		members = make(map[snowflake.ID]string)
+	}
+
+	members[e.User().ID] = username
+	ctx.Cache.Members.Set(*guildID, members, 0)
 }

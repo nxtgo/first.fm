@@ -8,10 +8,12 @@ import (
 
 	"go.fm/lfm"
 	"go.fm/lfm/types"
+	"go.fm/pkg/constants/emojis"
 	"go.fm/pkg/constants/errs"
 	"go.fm/pkg/constants/opts"
 	"go.fm/pkg/ctx"
 	"go.fm/pkg/discord/reply"
+	"go.fm/pkg/image"
 )
 
 type Command struct{}
@@ -114,26 +116,34 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 		avatar = "https://lastfm.freetls.fastly.net/i/u/avatar170s/818148bf682d429dc215c1705eb27b98.png"
 	}
 
+	color := 0x00ADD8
+	if dominantColor, err := image.DominantColor(avatar); err == nil {
+		color = dominantColor
+	}
+
 	component := discord.NewContainer(
 		discord.NewSection(
 			discord.NewTextDisplayf("## [%s](%s)", realName, user.Url),
-			discord.NewTextDisplayf("-# *__@%s__*\nsince <t:%s:D>", user.Name, user.Registered.Unixtime),
-			discord.NewTextDisplayf("**%s** total scrobbles", user.PlayCount),
+			discord.NewTextDisplayf("-# *__@%s__*\nSince <t:%s:D> %s", user.Name, user.Registered.Unixtime, emojis.EmojiCalendar),
+			discord.NewTextDisplayf("**%s** total scrobbles %s", user.PlayCount, emojis.EmojiPlay),
 		).WithAccessory(discord.NewThumbnail(avatar)),
 		discord.NewSmallSeparator(),
 		discord.NewTextDisplay(
-			fmt.Sprintf("-# *Favorite album* \\💿\n[**%s**](%s) — %s plays\n", favAlbum.Name, favAlbum.URL, favAlbum.PlayCount)+
-				fmt.Sprintf("-# *Favorite artist* \\🎤\n[**%s**](%s) — %s plays\n", favArtist.Name, favArtist.URL, favArtist.PlayCount)+
-				fmt.Sprintf("-# *Favorite track* \\🎵\n[**%s**](%s) — %s plays\n", favTrack.Name, favTrack.URL, favTrack.PlayCount),
+			fmt.Sprintf("-# *Favorite album* %s\n[**%s**](%s) — %s plays\n", emojis.EmojiAlbum, favAlbum.Name, favAlbum.URL, favAlbum.PlayCount)+
+				fmt.Sprintf("-# *Favorite artist* %s\n[**%s**](%s) — %s plays\n", emojis.EmojiMic2, favArtist.Name, favArtist.URL, favArtist.PlayCount)+
+				fmt.Sprintf("-# *Favorite track* %s\n[**%s**](%s) — %s plays\n", emojis.EmojiNote, favTrack.Name, favTrack.URL, favTrack.PlayCount),
 		),
 		discord.NewSmallSeparator(),
 		discord.NewTextDisplayf(
-			"\\🎤 **%s** artists\n\\💿 **%s** albums\n\\🎵 **%s** unique tracks",
+			"%s **%s** albums\n%s **%s** artists\n%s **%s** unique tracks",
+			emojis.EmojiAlbum,
 			user.ArtistCount,
+			emojis.EmojiMic2,
 			user.AlbumCount,
+			emojis.EmojiNote,
 			user.TrackCount,
 		),
-	).WithAccentColor(0x00ADD8)
+	).WithAccentColor(color)
 
 	r.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
 }
