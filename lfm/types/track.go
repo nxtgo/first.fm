@@ -22,7 +22,7 @@ type TrackGetInfo struct {
 	Album struct {
 		Artist string `xml:"artist"`
 		Title  string `xml:"title"`
-		URL    string `xml:"url"`
+		Url    string `xml:"url"`
 		Images []struct {
 			Size string `xml:"size,attr"`
 			Url  string `xml:",chardata"`

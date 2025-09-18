@@ -6,6 +6,7 @@ import (
 
 	"go.fm/lfm"
 	"go.fm/lfm/types"
+	"go.fm/pkg/constants/emojis"
 	"go.fm/pkg/constants/errs"
 	"go.fm/pkg/constants/opts"
 	"go.fm/pkg/ctx"
@@ -76,10 +77,24 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 
 	component := discord.NewContainer(
 		discord.NewSection(
-			discord.NewTextDisplayf("## [%s](%s)\nby **%s**\n-# *At %s*", track.Name, track.Url, track.Artist.Name, track.Album.Name),
+			discord.NewTextDisplayf(
+				"## [%s](%s)\nby [**%s**](%s)\n-# At [%s](%s)",
+				track.Name,
+				track.Url,
+				track.Artist.Name,
+				trackData.Artist.Url,
+				track.Album.Name,
+				trackData.Album.Url,
+			),
 		).WithAccessory(discord.NewThumbnail(thumbnail)),
 		discord.NewSmallSeparator(),
-		discord.NewTextDisplayf("-# Scrobbled **%d** times", trackData.UserPlayCount),
+		discord.NewTextDisplayf(
+			"-# *Current track for [**%s**](https://last.fm/user/%s), scrobbled **%d** times* %s",
+			user,
+			user,
+			trackData.UserPlayCount,
+			emojis.EmojiNote,
+		),
 	).WithAccentColor(color)
 
 	r.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()

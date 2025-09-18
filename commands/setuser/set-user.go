@@ -11,6 +11,7 @@ import (
 	"go.fm/db"
 	"go.fm/lfm"
 	"go.fm/logger"
+	"go.fm/pkg/constants/emojis"
 	"go.fm/pkg/constants/errs"
 	"go.fm/pkg/ctx"
 	"go.fm/pkg/discord/reply"
@@ -74,6 +75,6 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			return
 		}
 
-		r.Content("your last.fm username has been set to **%s**", username).Edit()
+		r.Content("your last.fm username has been set to **%s**! %s", username, emojis.EmojiUpdate).Edit()
 	}
 }

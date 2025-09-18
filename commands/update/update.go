@@ -56,7 +56,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 
 	go ctx.LastFM.User.PrefetchUserData(username)
 
-	r.Content("updated your data with fresh information %s", emojis.EmojiStar).Edit()
+	r.Content("updated and cached your data! %s", emojis.EmojiUpdate).Edit()
 }
 
 func clearUserCaches(username string, ctx ctx.CommandContext) {

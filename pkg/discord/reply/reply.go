@@ -5,6 +5,7 @@ import (
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+	"go.fm/pkg/constants/emojis"
 )
 
 type ResponseBuilder struct {
@@ -120,7 +121,7 @@ func QuickEmbed(title, description string) discord.Embed {
 }
 
 func Error(e *events.ApplicationCommandInteractionCreate, err error) error {
-	embed := QuickEmbed("❌ error", err.Error())
+	embed := QuickEmbed(fmt.Sprintf("%s error", emojis.EmojiCross), err.Error())
 	embed.Color = 0xE74C3C
 
 	return New(e).

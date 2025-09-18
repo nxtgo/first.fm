@@ -325,14 +325,14 @@ func getUserPlayCount(query *Query, username string, ctx ctx.CommandContext) int
 }
 
 func sendResponse(e *events.ApplicationCommandInteractionCreate, r *reply.ResponseBuilder, query *Query, results []Result, options Options) {
-	scope := "in this server"
+	scope := "In this server"
 	if options.IsGlobal {
-		scope = "globally"
+		scope = "Globally"
 	} else if guild, ok := e.Guild(); ok {
-		scope = fmt.Sprintf("in %s", guild.Name)
+		scope = fmt.Sprintf("In %s", guild.Name)
 	}
 
-	title := fmt.Sprintf("### Who knows %s **%s** %s?", query.Type, query.BetterName, scope)
+	title := fmt.Sprintf("# %s\n-# *%s*", query.BetterName, scope)
 	list := buildResultsList(results, options.Limit)
 
 	color := 0x00ADD8
@@ -341,10 +341,12 @@ func sendResponse(e *events.ApplicationCommandInteractionCreate, r *reply.Respon
 	}
 
 	component := discord.NewContainer(
+		discord.NewTextDisplay(title),
 		discord.NewSection(
-			discord.NewTextDisplay(title),
 			discord.NewTextDisplay(list),
-		).WithAccessory(discord.NewThumbnail(query.Thumbnail)),
+		).WithAccessory(
+			discord.NewThumbnail(query.Thumbnail),
+		),
 	).WithAccentColor(color)
 
 	r.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
@@ -361,14 +363,22 @@ func buildResultsList(results []Result, limit int) string {
 	for i := range displayCount {
 		r := results[i]
 		count := i + 1
-		crown := ""
-		if count == 1 {
-			crown = " " + emojis.EmojiCrown
+
+		var prefix string
+		switch count {
+		case 1:
+			prefix = emojis.EmojiRankOne
+		case 2:
+			prefix = emojis.EmojiRankTwo
+		case 3:
+			prefix = emojis.EmojiRankThree
+		default:
+			prefix = fmt.Sprintf("%d.", count)
 		}
 
 		list += fmt.Sprintf(
-			"%d. [%s%s](<https://www.last.fm/user/%s>) (*<@%s>*) — **%d** plays\n",
-			i+1, r.Username, crown, r.Username, r.UserID, r.PlayCount,
+			"%s [%s](<https://www.last.fm/user/%s>) (*<@%s>*) — **%d** plays\n",
+			prefix, r.Username, r.Username, r.UserID, r.PlayCount,
 		)
 	}
 

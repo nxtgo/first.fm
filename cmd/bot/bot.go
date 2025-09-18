@@ -127,7 +127,8 @@ func initDiscordClient(token string) *bot.Client {
 			bot.NewListenerFunc(func(r *events.Ready) {
 				logger.Log.Info("client ready v/")
 				if err := r.Client().SetPresence(context.TODO(),
-					gateway.WithListeningActivity("your scrobbles <3"),
+					//gateway.WithListeningActivity("your scrobbles <3"),
+					gateway.WithCustomActivity("xd"),
 					gateway.WithOnlineStatus(discord.OnlineStatusOnline),
 				); err != nil {
 					logger.Log.Errorf("failed to set presence: %s", err)

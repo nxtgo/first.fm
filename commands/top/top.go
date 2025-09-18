@@ -7,6 +7,7 @@ import (
 	"github.com/disgoorg/disgo/events"
 
 	"go.fm/lfm"
+	"go.fm/pkg/constants/emojis"
 	"go.fm/pkg/constants/errs"
 	"go.fm/pkg/constants/opts"
 	"go.fm/pkg/ctx"
@@ -60,7 +61,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 
 	user, err := ctx.GetUser(e)
 	if err != nil {
-		reply.Error(e, errs.ErrUserNotFound)
+		reply.Error(e, errs.ErrUserNotRegistered)
 		return
 	}
 
@@ -68,6 +69,11 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 	limit, limitDefined := e.SlashCommandInteractionData().OptInt("limit")
 	if !limitDefined {
 		limit = 10
+	}
+
+	userData, err := ctx.LastFM.User.GetInfoWithPrefetch(lfm.P{"user": user})
+	if err != nil {
+		reply.Error(e, errs.ErrUserNotFound)
 	}
 
 	var description string
@@ -87,7 +93,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			if i > limit {
 				break
 			}
-			description += fmt.Sprintf("%d. %s — **%s** plays\n", i+1, a.Name, a.PlayCount)
+			description += fmt.Sprintf("%d. [%s](%s) — **%s** plays\n", i+1, a.Name, a.Url, a.PlayCount)
 		}
 
 	case "track":
@@ -104,7 +110,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			if i > limit {
 				break
 			}
-			description += fmt.Sprintf("%d. %s — *%s* (**%s** plays)\n", i+1, t.Name, t.Artist.Name, t.PlayCount)
+			description += fmt.Sprintf("%d. [%s](%s) — *%s* (**%s** plays)\n", i+1, t.Name, t.Url, t.Artist.Name, t.PlayCount)
 		}
 
 	case "album":
@@ -121,7 +127,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			if i > limit {
 				break
 			}
-			description += fmt.Sprintf("%d. %s — *%s* (**%s** plays)\n", i+1, a.Name, a.Artist.Name, a.PlayCount)
+			description += fmt.Sprintf("%d. [%s](%s) — *%s* (**%s** plays)\n", i+1, a.Name, a.Url, a.Artist.Name, a.PlayCount)
 		}
 	}
 
@@ -130,10 +136,12 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 	}
 
 	component := discord.NewContainer(
-		discord.NewTextDisplayf("### %s's top %ss", user, topType),
-		discord.NewTextDisplay(description),
+		discord.NewSection(
+			discord.NewTextDisplayf("# [%s](%s)'s %s %ss", user, userData.Url, emojis.EmojiTop, topType),
+			discord.NewTextDisplay(description),
+		).WithAccessory(discord.NewThumbnail(userData.Images[len(userData.Images)-1].Url)),
 		discord.NewSmallSeparator(),
-		discord.NewTextDisplay("-# *if results are odd, use `/update`*"),
+		discord.NewTextDisplayf("-# *If results are odd, use `/update`* %s", emojis.EmojiChat),
 	)
 
 	r.Flags(discord.MessageFlagIsComponentsV2).Component(component).Edit()
