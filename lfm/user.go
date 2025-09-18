@@ -95,7 +95,6 @@ func (u *userApi) GetTopTracks(args P) (*types.UserGetTopTracks, error) {
 
 func (u *userApi) GetPlays(args P) (int, error) {
 	key := generateCacheKey("plays", args)
-
 	if cached, ok := u.api.cache.Plays.Get(key); ok {
 		return cached, nil
 	}
@@ -104,48 +103,42 @@ func (u *userApi) GetPlays(args P) (int, error) {
 	queryType := args["type"].(string)
 	queryName := args["name"].(string)
 
-	var playCount int
-	var cacheTTL time.Duration
+	fetchers := map[string]func() (int, time.Duration, error){
+		"artist": func() (int, time.Duration, error) {
+			a, err := u.api.Artist.GetInfo(P{"artist": queryName, "username": username})
+			if err != nil {
+				return 0, 0, err
+			}
+			return a.Stats.UserPlayCount, 10 * time.Minute, nil
+		},
+		"album": func() (int, time.Duration, error) {
+			a, err := u.api.Album.GetInfo(P{"artist": args["artist"], "album": queryName, "username": username})
+			if err != nil {
+				return 0, 0, err
+			}
+			return a.UserPlayCount, 15 * time.Minute, nil
+		},
+		"track": func() (int, time.Duration, error) {
+			t, err := u.api.Track.GetInfo(P{"artist": args["artist"], "track": queryName, "username": username})
+			if err != nil {
+				return 0, 0, err
+			}
+			return t.UserPlayCount, 5 * time.Minute, nil
+		},
+	}
 
-	switch queryType {
-	case "artist":
-		artist, err := u.api.Artist.GetInfo(P{"artist": queryName, "username": username})
-		if err != nil {
-			return 0, err
-		}
-		playCount = artist.Stats.UserPlayCount
-		cacheTTL = 10 * time.Minute
-
-	case "album":
-		album, err := u.api.Album.GetInfo(P{
-			"artist":   args["artist"],
-			"album":    queryName,
-			"username": username,
-		})
-		if err != nil {
-			return 0, err
-		}
-		playCount = album.UserPlayCount
-		cacheTTL = 15 * time.Minute
-
-	case "track":
-		track, err := u.api.Track.GetInfo(P{
-			"artist":   args["artist"],
-			"track":    queryName,
-			"username": username,
-		})
-		if err != nil {
-			return 0, err
-		}
-		playCount = track.UserPlayCount
-		cacheTTL = 5 * time.Minute
-
-	default:
+	fetch, ok := fetchers[queryType]
+	if !ok {
 		return 0, fmt.Errorf("unknown query type: %s", queryType)
 	}
 
-	u.api.cache.Plays.Set(key, playCount, cacheTTL)
-	return playCount, nil
+	count, ttl, err := fetch()
+	if err != nil {
+		return 0, err
+	}
+
+	u.api.cache.Plays.Set(key, count, ttl)
+	return count, nil
 }
 
 func (u *userApi) GetUsersByGuild(
@@ -191,22 +184,22 @@ func (u *userApi) GetInfoWithPrefetch(args P) (*types.UserGetInfo, error) {
 		return nil, err
 	}
 
-	go u.PrefetchUserData(username)
+	u.PrefetchUserData(username)
 
 	return userInfo, nil
 }
 
 func (u *userApi) PrefetchUserData(username string) {
 	if _, ok := u.api.cache.TopArtists.Get(generateCacheKey("topartists", P{"user": username})); !ok {
-		u.GetTopArtists(P{"user": username, "limit": 10})
+		go u.GetTopArtists(P{"user": username, "limit": 10})
 	}
 
 	if _, ok := u.api.cache.TopAlbums.Get(generateCacheKey("topalbums", P{"user": username})); !ok {
-		u.GetTopAlbums(P{"user": username, "limit": 10})
+		go u.GetTopAlbums(P{"user": username, "limit": 10})
 	}
 
 	if _, ok := u.api.cache.TopTracks.Get(generateCacheKey("toptracks", P{"user": username})); !ok {
-		u.GetTopTracks(P{"user": username, "limit": 10})
+		go u.GetTopTracks(P{"user": username, "limit": 10})
 	}
 }
 

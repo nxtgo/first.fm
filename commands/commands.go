@@ -20,8 +20,20 @@ import (
 	"go.fm/pkg/ctx"
 )
 
-var sharedCtx ctx.CommandContext
 var registry = map[string]Command{}
+var sharedCtx ctx.CommandContext
+
+const (
+	DefaultWorkerCount = 50
+	DefaultQueueSize   = 1000
+)
+
+type CommandJob struct {
+	e   *events.ApplicationCommandInteractionCreate
+	ctx ctx.CommandContext
+}
+
+var jobQueue = make(chan CommandJob, DefaultQueueSize)
 
 func init() {
 	Register(fm.Command{})
@@ -30,11 +42,7 @@ func init() {
 	Register(profile.Command{})
 	Register(top.Command{})
 	Register(update.Command{})
-
-	// non-lastfm commands :prayge:
 	Register(botinfo.Command{})
-
-	// delete me
 	Register(profilev2.Command{})
 }
 
@@ -44,36 +52,62 @@ type Command interface {
 }
 
 func Register(cmd Command) {
-	registry[cmd.Data().CommandName()] = cmd
+	name := cmd.Data().CommandName()
+	registry[name] = cmd
+	logger.Log.Debugf("registered command %s", name)
 }
 
 func All() []discord.ApplicationCommandCreate {
 	cmds := make([]discord.ApplicationCommandCreate, 0, len(registry))
 	for _, cmd := range registry {
-		logger.Log.Debugf("added command %s to registry", cmd.Data().CommandName())
 		cmds = append(cmds, cmd.Data())
 	}
-
 	return cmds
 }
 
 func InitDependencies(ctx ctx.CommandContext) {
 	ctx.Start = time.Now()
 	sharedCtx = ctx
+	StartWorkerPool(DefaultWorkerCount)
 }
 
-var commandSemaphore = make(chan struct{}, 100)
+func StartWorkerPool(numWorkers int) {
+	for i := range numWorkers {
+		go func(workerID int) {
+			for job := range jobQueue {
+				safeHandle(job.e, job.ctx)
+			}
+		}(i)
+	}
+	logger.Log.Infof("started %d command workers", numWorkers)
+}
+
+func safeHandle(e *events.ApplicationCommandInteractionCreate, ctx ctx.CommandContext) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Log.Errorf("panic in command %s: %v", e.Data.CommandName(), r)
+		}
+	}()
+
+	cmd, ok := registry[e.Data.CommandName()]
+	if !ok {
+		logger.Log.Warnf("unknown command: %s", e.Data.CommandName())
+		return
+	}
+
+	start := time.Now()
+	cmd.Handle(e, ctx)
+	logger.Log.Debugf("command %s executed in %s", e.Data.CommandName(), time.Since(start))
+}
 
 func Handler() bot.EventListener {
 	return &events.ListenerAdapter{
-
 		OnApplicationCommandInteraction: func(e *events.ApplicationCommandInteractionCreate) {
-			if cmd, ok := registry[e.Data.CommandName()]; ok {
-				go func() {
-					commandSemaphore <- struct{}{}
-					defer func() { <-commandSemaphore }()
-					cmd.Handle(e, sharedCtx)
-				}()
+			select {
+			case jobQueue <- CommandJob{e: e, ctx: sharedCtx}:
+			default:
+				logger.Log.Warnf("command queue full, dropping command: %s", e.Data.CommandName())
 			}
-		}}
+		},
+	}
 }

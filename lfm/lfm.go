@@ -1,6 +1,7 @@
 package lfm
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/xml"
 	"errors"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"go.fm/cache"
 )
@@ -37,18 +39,24 @@ type LastFMApi struct {
 	Track  *trackApi
 }
 
+var defaultRateLimiter = time.Tick(100 * time.Millisecond)
+
 func New(key string, c *cache.Cache) *LastFMApi {
 	params := lastFMParams{
-		apikey: key,
-		useragent: "go.fm/0.0.1 (discord bot; " +
-			"https://github.com/nxtgo/go.fm; " +
-			"contact: yehorovye@disroot.org)",
+		apikey:    key,
+		useragent: "go.fm/0.0.1 (discord bot; https://github.com/nxtgo/go.fm; contact: yehorovye@disroot.org)",
 	}
 
 	api := &LastFMApi{
 		params: &params,
-		client: &http.Client{},
-		apiKey: params.apikey,
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+			Transport: &http.Transport{
+				MaxIdleConns:        100,
+				MaxIdleConnsPerHost: 50,
+			},
+		},
+		apiKey: key,
 		cache:  c,
 	}
 
@@ -60,20 +68,19 @@ func New(key string, c *cache.Cache) *LastFMApi {
 	return api
 }
 
-// baseRequest constructs and executes a GET request.
 func (c *LastFMApi) baseRequest(method string, params P) (*http.Response, error) {
-	// Build query
+	<-defaultRateLimiter
+
 	values := url.Values{}
 	values.Set("api_key", c.apiKey)
 	values.Set("method", method)
-
 	for k, v := range params {
 		values.Set(k, fmt.Sprintf("%v", v))
 	}
 
 	u := lastFMBaseURL + "?" + values.Encode()
 
-	req, err := http.NewRequest("GET", u, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", u, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +91,6 @@ func (c *LastFMApi) baseRequest(method string, params P) (*http.Response, error)
 	return c.client.Do(req)
 }
 
-// helper to read and decode
 func (c *LastFMApi) doAndDecode(method string, params P, result any) error {
 	resp, err := c.baseRequest(method, params)
 	if err != nil {
@@ -92,33 +98,33 @@ func (c *LastFMApi) doAndDecode(method string, params P, result any) error {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	return decodeResponse(resp.Body, result)
+}
+
+func decodeResponse(r io.Reader, result any) (err error) {
+	var base Envelope
+	body, err := io.ReadAll(r)
 	if err != nil {
 		return err
 	}
 
-	return decodeResponse(body, result)
-}
-
-func decodeResponse(body []byte, result any) (err error) {
-	var base Envelope
-	err = xml.Unmarshal(body, &base)
-	if err != nil {
-		return
+	if err = xml.Unmarshal(body, &base); err != nil {
+		return err
 	}
+
 	if base.Status == "failed" {
 		var errorDetail ApiError
-		err = xml.Unmarshal(base.Inner, &errorDetail)
-		if err != nil {
-			return
+		if err = xml.Unmarshal(base.Inner, &errorDetail); err != nil {
+			return err
 		}
-		err = errors.New(errorDetail.Message)
-		return
-	} else if result == nil {
-		return
+		return errors.New(errorDetail.Message)
 	}
-	err = xml.Unmarshal(base.Inner, result)
-	return
+
+	if result != nil {
+		return xml.Unmarshal(base.Inner, result)
+	}
+
+	return nil
 }
 
 func generateCacheKey(prefix string, args P) string {
@@ -136,7 +142,6 @@ func generateCacheKey(prefix string, args P) string {
 	}
 
 	keyString := strings.Join(parts, "|")
-
 	if len(keyString) > 100 {
 		hash := sha256.Sum256([]byte(keyString))
 		return fmt.Sprintf("%s|%x", prefix, hash[:8])
