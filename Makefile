@@ -35,13 +35,11 @@ clean:
 fmt:
 	@echo ">> formatting source code..."
 	$(gofmt) -s -w .
-	@command -v $(goimports) >/dev/null 2>&1 && $(goimports) -w . || echo ">> goimports not installed"
 
 .PHONY: fmt-check
 fmt-check:
 	@echo ">> checking formatting..."
 	@$(gofmt) -l .
-	@command -v $(goimports) >/dev/null 2>&1 && $(goimports) -l . || echo ">> goimports not installed"
 
 .PHONY: tidy
 tidy:
@@ -56,7 +54,6 @@ vet:
 .PHONY: lint
 lint:
 	@echo ">> running linter..."
-	@command -v $(golangci_lint) >/dev/null 2>&1 && $(golangci_lint) run ./... || echo ">> golangci-lint not installed"
 
 .PHONY: test
 test:
