@@ -114,7 +114,7 @@ func (c *Cache) Stats() []CacheStats {
 	if c.Plays != nil {
 		add("Plays", c.Plays.Stats())
 	}
-	if c.Plays != nil {
+	if c.Cover != nil {
 		add("Cover", c.Cover.Stats())
 	}
 

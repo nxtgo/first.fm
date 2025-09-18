@@ -1,7 +1,7 @@
 package fm
 
 import (
-	"fmt"
+	"net/url"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
@@ -63,7 +63,11 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 		return
 	}
 
-	thumbnail := track.Images[len(track.Images)-1].Url
+	thumbnail := "https://lastfm.freetls.fastly.net/i/u/avatar170s/818148bf682d429dc215c1705eb27b98.png"
+	if n := len(track.Images); n > 0 {
+		thumbnail = string([]byte(track.Images[n-1].Url))
+	}
+
 	trackData, err := ctx.LastFM.Track.GetInfo(lfm.P{
 		"user":   user,
 		"track":  track.Name,
@@ -78,6 +82,19 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 		color = 0x00ADD8
 	}
 
+	var linkButton discord.ButtonComponent
+	if track.Url != "" {
+		linkButton = discord.NewButton(
+			discord.ButtonStyleLink,
+			"Song in Last.fm",
+			"",
+			url.PathEscape(track.Url),
+			snowflake.ID(0),
+		).WithEmoji(
+			discord.NewCustomComponentEmoji(snowflake.MustParse("1418268922448187492")),
+		)
+	}
+
 	component := discord.NewContainer(
 		discord.NewSection(
 			discord.NewTextDisplayf(
@@ -88,24 +105,7 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 			),
 		).WithAccessory(discord.NewThumbnail(thumbnail)),
 		discord.NewActionRow(
-			discord.NewButton(
-				discord.ButtonStyleLink,
-				"Song in Last.fm",
-				"",
-				track.Url,
-				snowflake.ID(0),
-			).WithEmoji(
-				discord.NewCustomComponentEmoji(snowflake.MustParse("1418268922448187492")),
-			),
-			discord.NewButton(
-				discord.ButtonStyleLink,
-				"User in Last.fm",
-				"",
-				fmt.Sprintf("https://last.fm/user/%s", user),
-				snowflake.ID(0),
-			).WithEmoji(
-				discord.NewCustomComponentEmoji(snowflake.MustParse("1418269025959546943")),
-			),
+			linkButton,
 		),
 		discord.NewSmallSeparator(),
 		discord.NewTextDisplayf(

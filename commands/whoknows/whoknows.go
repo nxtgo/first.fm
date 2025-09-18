@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,6 +41,7 @@ type Options struct {
 }
 
 type Query struct {
+	Url        string
 	Type       string
 	Name       string
 	ArtistName string
@@ -172,15 +174,23 @@ func setQueryFromCurrentTrack(query *Query, e *events.ApplicationCommandInteract
 	}
 
 	track := tracks.Tracks[0]
+	query.ArtistName = track.Artist.Name
+
+	sanitize := func(s string) string {
+		return strings.ReplaceAll(s, " ", "+")
+	}
+
 	switch query.Type {
 	case "artist":
 		query.Name = track.Artist.Name
+		query.Url = fmt.Sprintf("https://www.last.fm/music/%s", sanitize(track.Artist.Name))
 	case "track":
 		query.Name = track.Name
-		query.ArtistName = track.Artist.Name
+		query.Url = track.Url
 	case "album":
 		query.Name = track.Album.Name
-		query.ArtistName = track.Artist.Name
+		query.Url = fmt.Sprintf("https://www.last.fm/music/%s/%s",
+			sanitize(track.Artist.Name), sanitize(track.Album.Name))
 	}
 
 	return nil
@@ -360,11 +370,23 @@ func sendResponse(e *events.ApplicationCommandInteractionCreate, r *reply.Respon
 	}
 
 	component := discord.NewContainer(
-		discord.NewTextDisplay(title),
 		discord.NewSection(
+			discord.NewTextDisplay(title),
 			discord.NewTextDisplay(list),
 		).WithAccessory(
 			discord.NewThumbnail(query.Thumbnail),
+		),
+		discord.NewSmallSeparator(),
+		discord.NewActionRow(
+			discord.NewButton(
+				discord.ButtonStyleLink,
+				"Last.fm",
+				"",
+				url.PathEscape(query.Url),
+				snowflake.ID(0),
+			).WithEmoji(
+				discord.NewCustomComponentEmoji(snowflake.MustParse("1418268922448187492")),
+			),
 		),
 	).WithAccentColor(color)
 
@@ -383,7 +405,7 @@ func buildResultsList(results []Result, limit int) string {
 		r := results[i]
 		count := i + 1
 
-		var prefix string
+		var prefix string = fmt.Sprintf("%d.", count)
 		switch count {
 		case 1:
 			prefix = emojis.EmojiRankOne
@@ -391,8 +413,6 @@ func buildResultsList(results []Result, limit int) string {
 			prefix = emojis.EmojiRankTwo
 		case 3:
 			prefix = emojis.EmojiRankThree
-		default:
-			prefix = fmt.Sprintf("%d.", count)
 		}
 
 		list += fmt.Sprintf(
@@ -402,7 +422,7 @@ func buildResultsList(results []Result, limit int) string {
 	}
 
 	if len(results) == 1 {
-		list += "\n*this is pretty empty...*"
+		list += "*this is pretty empty...*"
 	}
 
 	if len(results) > limit {
