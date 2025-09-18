@@ -35,6 +35,10 @@ var (
 	dbPath         string
 )
 
+/*
+close order: database, cache, client. ~elisiei
+*/
+
 func init() {
 	debug.SetMemoryLimit(1 << 30)
 	if err := env.Load(""); err != nil {
@@ -72,10 +76,10 @@ func main() {
 
 	lfmCache := cache.NewCache()
 	lfm := lfm.New(os.Getenv("LASTFM_API_KEY"), lfmCache)
-	defer lfmCache.Close()
-
 	closeConnection, database := initDatabase(ctx, dbPath)
+
 	defer closeConnection()
+	defer lfmCache.Close()
 
 	cmdCtx := gofmCtx.CommandContext{
 		LastFM:   lfm,
