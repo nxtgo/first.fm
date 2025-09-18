@@ -1,8 +1,11 @@
 package fm
 
 import (
+	"fmt"
+
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+	"github.com/disgoorg/snowflake/v2"
 
 	"go.fm/lfm"
 	"go.fm/lfm/types"
@@ -78,19 +81,35 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 	component := discord.NewContainer(
 		discord.NewSection(
 			discord.NewTextDisplayf(
-				"## [%s](%s)\nby [**%s**](%s)\n-# At [%s](%s)",
+				"# %s\nby **%s**\n-# At %s",
 				track.Name,
-				track.Url,
 				track.Artist.Name,
-				trackData.Artist.Url,
 				track.Album.Name,
-				trackData.Album.Url,
 			),
 		).WithAccessory(discord.NewThumbnail(thumbnail)),
+		discord.NewActionRow(
+			discord.NewButton(
+				discord.ButtonStyleLink,
+				"Song in Last.fm",
+				"",
+				track.Url,
+				snowflake.ID(0),
+			).WithEmoji(
+				discord.NewCustomComponentEmoji(snowflake.MustParse("1418268922448187492")),
+			),
+			discord.NewButton(
+				discord.ButtonStyleLink,
+				"User in Last.fm",
+				"",
+				fmt.Sprintf("https://last.fm/user/%s", user),
+				snowflake.ID(0),
+			).WithEmoji(
+				discord.NewCustomComponentEmoji(snowflake.MustParse("1418269025959546943")),
+			),
+		),
 		discord.NewSmallSeparator(),
 		discord.NewTextDisplayf(
-			"-# *Current track for [**%s**](https://last.fm/user/%s), scrobbled **%d** times* %s",
-			user,
+			"-# *Current track for **%s**, scrobbled **%d** times* %s",
 			user,
 			trackData.UserPlayCount,
 			emojis.EmojiNote,
