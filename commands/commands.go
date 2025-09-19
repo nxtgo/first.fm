@@ -8,6 +8,7 @@ import (
 	"github.com/disgoorg/disgo/events"
 
 	"go.fm/commands/botinfo"
+	"go.fm/commands/chart"
 	"go.fm/commands/fm"
 	"go.fm/commands/profile"
 
@@ -44,6 +45,7 @@ func init() {
 	Register(top.Command{})
 	Register(update.Command{})
 	Register(botinfo.Command{})
+	Register(chart.Command{})
 
 	// wip.
 	// Register(profilev2.Command{})

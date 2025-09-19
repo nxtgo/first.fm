@@ -155,8 +155,8 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 
 	bgImage := transform.Resize(avatarImage, canvasWidth, canvasHeight, transform.Linear)
 	bgImage = blur.Gaussian(bgImage, 20)
-	draw.Draw(canvas, canvas.Bounds(), bgImage, image.Point{0, 0}, draw.Over)
 
+	draw.Draw(canvas, canvas.Bounds(), bgImage, image.Point{0, 0}, draw.Over)
 	draw.Draw(canvas, canvas.Bounds(), gradient, image.Point{0, 0}, draw.Over)
 
 	avatarImage = transform.Resize(avatarImage, avatarSize, avatarSize, transform.Gaussian)
