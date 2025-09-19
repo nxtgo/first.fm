@@ -46,39 +46,36 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 	}
 
 	branch, commit, message := getGitInfo()
-	cacheStats := ctx.Cache.Stats()
-
-	var sb strings.Builder
-
-	fmt.Fprintf(&sb, "registered last.fm users: %d\n", lastFMUsers)
-	fmt.Fprintf(&sb, "goroutines: %d\n", runtime.NumGoroutine())
-	fmt.Fprintf(&sb, "memory usage:\n")
-	fmt.Fprintf(&sb, "  - alloc: %.2f MB\n", float64(m.Alloc)/1024/1024)
-	fmt.Fprintf(&sb, "  - total: %.2f MB\n", float64(m.TotalAlloc)/1024/1024)
-	fmt.Fprintf(&sb, "  - sys  : %.2f MB\n", float64(m.Sys)/1024/1024)
-	fmt.Fprintf(&sb, "uptime: %s\n", time.Since(ctx.Start).Truncate(time.Second))
-	fmt.Fprintf(&sb, "git:\n")
-	fmt.Fprintf(&sb, "  - branch : %s\n", branch)
-	fmt.Fprintf(&sb, "  - commit : %s\n", commit)
-	fmt.Fprintf(&sb, "  - message: %s\n", message)
-
-	headers := []string{"cache", "hits", "misses", "loads", "evicts", "size"}
-	rows := make([][]string, len(cacheStats))
-	for i, cs := range cacheStats {
-		rows[i] = []string{
-			cs.Name,
-			fmt.Sprintf("%d", cs.Stats.Hits),
-			fmt.Sprintf("%d", cs.Stats.Misses),
-			fmt.Sprintf("%d", cs.Stats.Loads),
-			fmt.Sprintf("%d", cs.Stats.Evictions),
-			fmt.Sprintf("%d", cs.Stats.CurrentSize),
-		}
+	botStats := [][2]string{
+		{"users", fmt.Sprintf("%d", lastFMUsers)},
+		{"goroutines", fmt.Sprintf("%d", runtime.NumGoroutine())},
+		{"alloc", fmt.Sprintf("%.2f MB", float64(m.Alloc)/1024/1024)},
+		{"total", fmt.Sprintf("%.2f MB", float64(m.TotalAlloc)/1024/1024)},
+		{"sys", fmt.Sprintf("%.2f MB", float64(m.Sys)/1024/1024)},
+		{"uptime", time.Since(ctx.Start).Truncate(time.Second).String()},
+		{"branch", branch},
+		{"commit", fmt.Sprintf("%s (%s)", commit, message)},
 	}
 
-	cacheTable := markdown.MD(markdown.Table(headers, rows)).CodeBlock("ts")
-	botStats := markdown.MD(sb.String()).CodeBlock("yaml")
+	cacheStats := ctx.Cache.Stats()
+	cacheRows := make([][2]string, 0, len(cacheStats))
+	for _, cs := range cacheStats {
+		cacheRow := fmt.Sprintf(
+			"hits=%d misses=%d loads=%d evicts=%d size=%d",
+			cs.Stats.Hits,
+			cs.Stats.Misses,
+			cs.Stats.Loads,
+			cs.Stats.Evictions,
+			cs.Stats.CurrentSize,
+		)
+		cacheRows = append(cacheRows, [2]string{cs.Name, cacheRow})
+	}
 
-	r.Content("## bot stats\n%s\n## cache stats\n%s", botStats, cacheTable).Edit()
+	botTable := markdown.MD(markdown.GenerateTable(botStats)).CodeBlock("ts")
+	cacheTable := markdown.MD(markdown.GenerateTable(cacheRows)).CodeBlock("ts")
+
+	r.Content("## bot stats\n%s\n## cache stats\n%s", botTable, cacheTable).Edit()
+
 }
 
 func getGitInfo() (branch, commit, message string) {

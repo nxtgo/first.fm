@@ -1,8 +1,6 @@
 package fm
 
 import (
-	"net/url"
-
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/snowflake/v2"
@@ -84,12 +82,9 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 
 	var linkButton discord.ButtonComponent
 	if track.Url != "" {
-		linkButton = discord.NewButton(
-			discord.ButtonStyleLink,
+		linkButton = discord.NewLinkButton(
 			"Song in Last.fm",
-			"",
-			url.PathEscape(track.Url),
-			snowflake.ID(0),
+			track.Url,
 		).WithEmoji(
 			discord.NewCustomComponentEmoji(snowflake.MustParse("1418268922448187492")),
 		)

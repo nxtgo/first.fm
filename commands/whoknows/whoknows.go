@@ -378,12 +378,9 @@ func sendResponse(e *events.ApplicationCommandInteractionCreate, r *reply.Respon
 		),
 		discord.NewSmallSeparator(),
 		discord.NewActionRow(
-			discord.NewButton(
-				discord.ButtonStyleLink,
+			discord.NewLinkButton(
 				"Last.fm",
-				"",
-				url.PathEscape(query.Url),
-				snowflake.ID(0),
+				query.Url,
 			).WithEmoji(
 				discord.NewCustomComponentEmoji(snowflake.MustParse("1418268922448187492")),
 			),
