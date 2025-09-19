@@ -14,8 +14,8 @@ func init() {
 func EventReady(c *gateway.ReadyEvent) {
 	zlog.Log.WithFields(
 		zlog.F{
-			"username":    c.User.Username,
-			"guild_count": len(c.Guilds),
+			"tag":    c.User.Tag(),
+			"guilds": len(c.Guilds),
 		},
 	).Info("client is ready")
 }

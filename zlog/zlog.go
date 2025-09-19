@@ -27,7 +27,7 @@ const (
 )
 
 func (l Level) String() string {
-	return [...]string{"DEBUG", "INFO", "WARN", "ERROR", "FATAL !"}[l]
+	return [...]string{"DBG", "INF", "WRN", "ERR", "FTL"}[l]
 }
 
 type F map[string]any
@@ -254,20 +254,3 @@ func SetJSON(on bool)          { Log.SetJSON(on) }
 func EnableColors(on bool)     { Log.EnableColors(on) }
 func ShowCaller(on bool)       { Log.ShowCaller(on) }
 func WithFields(f F) *Logger   { return Log.WithFields(f) }
-
-func ParseLevel(s string) (Level, error) {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "debug":
-		return LevelDebug, nil
-	case "info":
-		return LevelInfo, nil
-	case "warn", "warning":
-		return LevelWarn, nil
-	case "error", "err":
-		return LevelError, nil
-	case "fatal":
-		return LevelFatal, nil
-	default:
-		return LevelInfo, fmt.Errorf("unknown level: %s", s)
-	}
-}

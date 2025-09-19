@@ -43,5 +43,6 @@ func RegisterCommands(r *cmdroute.Router, st *state.State) {
 
 func Sync(st *state.State) error {
 	zlog.Log.Debug("synced commands")
+
 	return cmdroute.OverwriteCommands(st, allCommands)
 }
