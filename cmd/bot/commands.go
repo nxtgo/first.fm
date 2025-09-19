@@ -1,5 +1,5 @@
 package main
 
 import (
-	_ "go.fm/commands/ping"
+	_ "go.fm/commands/stats"
 )
