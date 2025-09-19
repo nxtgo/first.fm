@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,11 +16,11 @@ import (
 	"github.com/disgoorg/snowflake/v2"
 
 	"go.fm/lfm"
+	"go.fm/pkg/bild/colors"
 	"go.fm/pkg/constants/emojis"
 	"go.fm/pkg/constants/errs"
 	"go.fm/pkg/ctx"
 	"go.fm/pkg/discord/reply"
-	"go.fm/pkg/image"
 )
 
 var (
@@ -40,6 +41,7 @@ type Options struct {
 }
 
 type Query struct {
+	Url        string
 	Type       string
 	Name       string
 	ArtistName string
@@ -172,15 +174,23 @@ func setQueryFromCurrentTrack(query *Query, e *events.ApplicationCommandInteract
 	}
 
 	track := tracks.Tracks[0]
+	query.ArtistName = track.Artist.Name
+
+	sanitize := func(s string) string {
+		return strings.ReplaceAll(s, " ", "+")
+	}
+
 	switch query.Type {
 	case "artist":
 		query.Name = track.Artist.Name
+		query.Url = fmt.Sprintf("https://www.last.fm/music/%s", sanitize(track.Artist.Name))
 	case "track":
 		query.Name = track.Name
-		query.ArtistName = track.Artist.Name
+		query.Url = track.Url
 	case "album":
 		query.Name = track.Album.Name
-		query.ArtistName = track.Artist.Name
+		query.Url = fmt.Sprintf("https://www.last.fm/music/%s/%s",
+			sanitize(track.Artist.Name), sanitize(track.Album.Name))
 	}
 
 	return nil
@@ -279,14 +289,18 @@ func fetchPlayCounts(query *Query, users map[snowflake.ID]string, ctx ctx.Comman
 	ctx_timeout, cancel := context.WithTimeout(ctx.Context, timeout)
 	defer cancel()
 
+loop:
 	for userID, username := range users {
 		select {
 		case <-ctx_timeout.Done():
-			goto done
+			break loop
 		default:
 		}
 
-		wg.Go(func() {
+		wg.Add(1)
+		go func(userID snowflake.ID, username string) {
+			defer wg.Done()
+
 			select {
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
@@ -304,11 +318,20 @@ func fetchPlayCounts(query *Query, users map[snowflake.ID]string, ctx ctx.Comman
 				})
 				mu.Unlock()
 			}
-		})
+		}(userID, username)
 	}
 
-done:
-	wg.Wait()
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-ctx_timeout.Done():
+	}
+
 	return results
 }
 
@@ -342,16 +365,25 @@ func sendResponse(e *events.ApplicationCommandInteractionCreate, r *reply.Respon
 	list := buildResultsList(results, options.Limit)
 
 	color := 0x00ADD8
-	if dominantColor, err := image.DominantColor(query.Thumbnail); err == nil {
+	if dominantColor, err := colors.Dominant(query.Thumbnail); err == nil {
 		color = dominantColor
 	}
 
 	component := discord.NewContainer(
-		discord.NewTextDisplay(title),
 		discord.NewSection(
+			discord.NewTextDisplay(title),
 			discord.NewTextDisplay(list),
 		).WithAccessory(
 			discord.NewThumbnail(query.Thumbnail),
+		),
+		discord.NewSmallSeparator(),
+		discord.NewActionRow(
+			discord.NewLinkButton(
+				"Last.fm",
+				query.Url,
+			).WithEmoji(
+				discord.NewCustomComponentEmoji(snowflake.MustParse("1418268922448187492")),
+			),
 		),
 	).WithAccentColor(color)
 
@@ -370,7 +402,7 @@ func buildResultsList(results []Result, limit int) string {
 		r := results[i]
 		count := i + 1
 
-		var prefix string
+		var prefix string = fmt.Sprintf("%d.", count)
 		switch count {
 		case 1:
 			prefix = emojis.EmojiRankOne
@@ -378,8 +410,6 @@ func buildResultsList(results []Result, limit int) string {
 			prefix = emojis.EmojiRankTwo
 		case 3:
 			prefix = emojis.EmojiRankThree
-		default:
-			prefix = fmt.Sprintf("%d.", count)
 		}
 
 		list += fmt.Sprintf(
@@ -389,7 +419,7 @@ func buildResultsList(results []Result, limit int) string {
 	}
 
 	if len(results) == 1 {
-		list += "\n*this is pretty empty...*"
+		list += "*this is pretty empty...*"
 	}
 
 	if len(results) > limit {

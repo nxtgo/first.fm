@@ -6,49 +6,84 @@ import (
 	"unicode/utf8"
 )
 
-func Table(headers []string, rows [][]string) string {
-	colWidths := make([]int, len(headers))
-	for i, h := range headers {
-		colWidths[i] = len(h)
+// getLongerStr returns the longer of two strings based on rune count.
+func getLongerStr(a, b string) string {
+	if utf8.RuneCountInString(a) > utf8.RuneCountInString(b) {
+		return a
 	}
-	for _, row := range rows {
-		for i, cell := range row {
-			if len(cell) > colWidths[i] {
-				colWidths[i] = len(cell)
-			}
-		}
+	return b
+}
+
+// GenerateTable creates a key-value aligned table from a slice of [2]string.
+func GenerateTable(input [][2]string) string {
+	if len(input) == 0 {
+		return ""
 	}
 
-	pad := func(s string, width int) string {
-		return s + strings.Repeat(" ", width-len(s))
+	// Find the longest key
+	longest := input[0][0]
+	for _, pair := range input {
+		longest = getLongerStr(longest, pair[0])
 	}
+	longestLen := utf8.RuneCountInString(longest)
+
+	var b strings.Builder
+	for _, pair := range input {
+		key, value := pair[0], pair[1]
+		padding := longestLen - utf8.RuneCountInString(key)
+		b.WriteString(strings.Repeat(" ", padding))
+		b.WriteString(key)
+		b.WriteString(": ")
+		b.WriteString(value)
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
+// GenerateList creates a table-like list with headers.
+func GenerateList(keyName, valueName string, values [][2]string) string {
+	return GenerateListFixedDelim(keyName, valueName, values, utf8.RuneCountInString(keyName), utf8.RuneCountInString(valueName))
+}
+
+// GenerateListFixedDelim creates a table-like list with headers and custom delimiter lengths.
+func GenerateListFixedDelim(keyName, valueName string, values [][2]string, keyDelimLen, valueDelimLen int) string {
+	if len(values) == 0 {
+		return ""
+	}
+
+	// Find the longest between header and keys
+	longest := getLongerStr(keyName, values[0][0])
+	for _, pair := range values {
+		longest = getLongerStr(longest, pair[0])
+	}
+	longestLen := utf8.RuneCountInString(longest)
 
 	var b strings.Builder
 
-	for i, h := range headers {
-		if i > 0 {
-			b.WriteString(" | ")
-		}
-		b.WriteString(pad(h, colWidths[i]))
-	}
-	b.WriteString("\n")
+	// Header
+	b.WriteString(" ")
+	b.WriteString(strings.Repeat(" ", longestLen-utf8.RuneCountInString(keyName)))
+	b.WriteString(keyName)
+	b.WriteByte('\t')
+	b.WriteString(valueName)
+	b.WriteByte('\n')
 
-	for i := range headers {
-		if i > 0 {
-			b.WriteString(" | ")
-		}
-		b.WriteString(strings.Repeat("-", colWidths[i]))
-	}
-	b.WriteString("\n")
+	// Delimiter row
+	b.WriteString(" ")
+	b.WriteString(strings.Repeat(" ", longestLen-utf8.RuneCountInString(keyName)))
+	b.WriteString(strings.Repeat("-", keyDelimLen))
+	b.WriteByte('\t')
+	b.WriteString(strings.Repeat("-", valueDelimLen))
 
-	for _, row := range rows {
-		for i, cell := range row {
-			if i > 0 {
-				b.WriteString(" | ")
-			}
-			b.WriteString(pad(cell, colWidths[i]))
-		}
-		b.WriteString("\n")
+	// Values
+	for _, pair := range values {
+		key, value := pair[0], pair[1]
+		b.WriteByte('\n')
+		b.WriteString(" ")
+		b.WriteString(strings.Repeat(" ", longestLen-utf8.RuneCountInString(key)))
+		b.WriteString(key)
+		b.WriteByte('\t')
+		b.WriteString(value)
 	}
 
 	return b.String()

@@ -66,8 +66,8 @@ func NewCache() *Cache {
 			gce.WithMaxEntries(50_000),
 		),
 		Cover: gce.New[string, string](
-			gce.WithDefaultTTL(time.Hour*24*365),
-			gce.WithMaxEntries(100_000),
+			gce.WithDefaultTTL(time.Hour*24*7),
+			gce.WithMaxEntries(10_000),
 		),
 	}
 }
@@ -114,7 +114,7 @@ func (c *Cache) Stats() []CacheStats {
 	if c.Plays != nil {
 		add("Plays", c.Plays.Stats())
 	}
-	if c.Plays != nil {
+	if c.Cover != nil {
 		add("Cover", c.Cover.Stats())
 	}
 

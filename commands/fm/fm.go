@@ -3,15 +3,16 @@ package fm
 import (
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+	"github.com/disgoorg/snowflake/v2"
 
 	"go.fm/lfm"
 	"go.fm/lfm/types"
+	"go.fm/pkg/bild/colors"
 	"go.fm/pkg/constants/emojis"
 	"go.fm/pkg/constants/errs"
 	"go.fm/pkg/constants/opts"
 	"go.fm/pkg/ctx"
 	"go.fm/pkg/discord/reply"
-	"go.fm/pkg/image"
 )
 
 type Command struct{}
@@ -60,7 +61,11 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 		return
 	}
 
-	thumbnail := track.Images[len(track.Images)-1].Url
+	thumbnail := "https://lastfm.freetls.fastly.net/i/u/avatar170s/818148bf682d429dc215c1705eb27b98.png"
+	if n := len(track.Images); n > 0 {
+		thumbnail = string([]byte(track.Images[n-1].Url))
+	}
+
 	trackData, err := ctx.LastFM.Track.GetInfo(lfm.P{
 		"user":   user,
 		"track":  track.Name,
@@ -70,27 +75,36 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 		trackData = &types.TrackGetInfo{UserPlayCount: 0}
 	}
 
-	color, err := image.DominantColor(thumbnail)
+	color, err := colors.Dominant(thumbnail)
 	if err != nil {
 		color = 0x00ADD8
+	}
+
+	var linkButton discord.ButtonComponent
+	if track.Url != "" {
+		linkButton = discord.NewLinkButton(
+			"Song in Last.fm",
+			track.Url,
+		).WithEmoji(
+			discord.NewCustomComponentEmoji(snowflake.MustParse("1418268922448187492")),
+		)
 	}
 
 	component := discord.NewContainer(
 		discord.NewSection(
 			discord.NewTextDisplayf(
-				"## [%s](%s)\nby [**%s**](%s)\n-# At [%s](%s)",
+				"# %s\nby **%s**\n-# At %s",
 				track.Name,
-				track.Url,
 				track.Artist.Name,
-				trackData.Artist.Url,
 				track.Album.Name,
-				trackData.Album.Url,
 			),
 		).WithAccessory(discord.NewThumbnail(thumbnail)),
+		discord.NewActionRow(
+			linkButton,
+		),
 		discord.NewSmallSeparator(),
 		discord.NewTextDisplayf(
-			"-# *Current track for [**%s**](https://last.fm/user/%s), scrobbled **%d** times* %s",
-			user,
+			"-# *Current track for **%s**, scrobbled **%d** times* %s",
 			user,
 			trackData.UserPlayCount,
 			emojis.EmojiNote,

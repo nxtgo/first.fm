@@ -5,7 +5,9 @@ import (
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+	"go.fm/logger"
 	"go.fm/pkg/constants/emojis"
+	"go.fm/pkg/constants/errs"
 )
 
 type ResponseBuilder struct {
@@ -94,7 +96,8 @@ func (r *ResponseBuilder) Send() {
 		},
 	)
 	if err != nil {
-		Error(r.e, err)
+		logger.Log.Error(err.Error())
+		Error(r.e, errs.ErrUnexpected)
 	}
 }
 
@@ -112,7 +115,8 @@ func (r *ResponseBuilder) Edit() {
 		},
 	)
 	if err != nil {
-		Error(r.e, err)
+		logger.Log.Error(err.Error())
+		Error(r.e, errs.ErrUnexpected)
 	}
 }
 

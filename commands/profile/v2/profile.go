@@ -9,6 +9,7 @@ import (
 	"image/color"
 	"image/draw"
 	"runtime"
+	"runtime/debug"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
@@ -154,8 +155,8 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 
 	bgImage := transform.Resize(avatarImage, canvasWidth, canvasHeight, transform.Linear)
 	bgImage = blur.Gaussian(bgImage, 20)
-	draw.Draw(canvas, canvas.Bounds(), bgImage, image.Point{0, 0}, draw.Over)
 
+	draw.Draw(canvas, canvas.Bounds(), bgImage, image.Point{0, 0}, draw.Over)
 	draw.Draw(canvas, canvas.Bounds(), gradient, image.Point{0, 0}, draw.Over)
 
 	avatarImage = transform.Resize(avatarImage, avatarSize, avatarSize, transform.Gaussian)
@@ -246,6 +247,11 @@ func (Command) Handle(e *events.ApplicationCommandInteractionCreate, ctx ctx.Com
 	// - end memory measure -
 
 	runtime.ReadMemStats(&mEnd)
+
+	defer func() {
+		runtime.GC()
+		debug.FreeOSMemory()
+	}()
 
 	file := discord.NewFile("test.png", "", bytes.NewReader(result))
 	r.File(file).Content("ready. (wip command, testing purposes)\n-# *used %vmb*", bToMb(mEnd.Alloc-mStart.Alloc)).Edit()
