@@ -41,14 +41,14 @@ var (
 		LevelInfo:  "\u001b[34m",
 		LevelWarn:  "\u001b[33m",
 		LevelError: "\u001b[31m",
-		LevelFatal: "\u001b[35;1m",
+		LevelFatal: "\u001b[35m",
 	}
 	defaultLevelColorBg = map[Level]string{
 		LevelDebug: "\u001b[47m",
 		LevelInfo:  "\u001b[44m",
 		LevelWarn:  "\u001b[43m",
 		LevelError: "\u001b[41m",
-		LevelFatal: "\u001b[45;1m",
+		LevelFatal: "\u001b[45m",
 	}
 )
 

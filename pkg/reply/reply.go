@@ -214,20 +214,20 @@ func (rm *ResponseManager) QuickEmbed(embed discord.Embed, flags ...discord.Mess
 	return builder.Send()
 }
 
-func (rm *ResponseManager) AutoDefer(fn func() (*EditBuilder, error), flags ...discord.MessageFlags) error {
+func (rm *ResponseManager) AutoDefer(fn func(edit *EditBuilder) error, flags ...discord.MessageFlags) error {
 	deferred := rm.Defer(flags...)
 	if deferred.Error() != nil {
 		return deferred.Error()
 	}
 
-	editBuilder, err := fn()
+	editBuilder := deferred.Edit()
+	err := fn(editBuilder)
 	if err != nil {
-		_, err := deferred.Edit().Content(fmt.Sprintf("❌ Error: %v", err)).Send()
+		_, err := editBuilder.Clear().Embed(ErrorEmbed(err.Error())).Send()
 		return err
 	}
 
-	_, err = editBuilder.Send()
-	return err
+	return nil
 }
 
 func ErrorEmbed(description string) discord.Embed {

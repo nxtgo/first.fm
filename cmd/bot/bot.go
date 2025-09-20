@@ -10,6 +10,7 @@ import (
 	"github.com/diamondburned/arikawa/v3/state"
 
 	"go.fm/commands"
+	"go.fm/db"
 	"go.fm/events"
 	"go.fm/zlog"
 )
@@ -22,7 +23,14 @@ func main() {
 
 	s := state.New("Bot " + discordToken)
 	r := cmdroute.NewRouter()
-	commands.RegisterCommands(r, s)
+	q, db, err := db.Start(context.Background(), "file:database.db?_foreign_keys=on")
+	if err != nil {
+		zlog.Log.Fatalf("failed to connect database: %v", err)
+	}
+	defer db.Close()
+
+	// register commands
+	commands.RegisterCommands(r, s, q)
 
 	// command handlers
 	if err := commands.Sync(s); err != nil {
@@ -46,7 +54,7 @@ func main() {
 	defer s.Close()
 
 	// set status
-	err := s.Gateway().Send(
+	err = s.Gateway().Send(
 		context.Background(),
 		&gateway.UpdatePresenceCommand{
 			Since:  discord.UnixMsTimestamp(0),

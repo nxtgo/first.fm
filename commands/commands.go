@@ -7,6 +7,7 @@ import (
 	"github.com/diamondburned/arikawa/v3/api/cmdroute"
 	"github.com/diamondburned/arikawa/v3/state"
 
+	"go.fm/db"
 	"go.fm/pkg/reply"
 	"go.fm/zlog"
 )
@@ -16,6 +17,7 @@ type CommandContext struct {
 	Data  cmdroute.CommandData
 	St    *state.State
 	Reply *reply.ResponseManager
+	Db    *db.Queries
 }
 
 type CommandHandler func(c *CommandContext) error
@@ -30,7 +32,7 @@ func Register(meta api.CreateCommandData, handler CommandHandler) {
 	registry[meta.Name] = handler
 }
 
-func RegisterCommands(r *cmdroute.Router, st *state.State) {
+func RegisterCommands(r *cmdroute.Router, st *state.State, q *db.Queries) {
 	for name, handler := range registry {
 		h := handler
 		r.AddFunc(name, func(ctx context.Context, data cmdroute.CommandData) *api.InteractionResponseData {
@@ -40,6 +42,7 @@ func RegisterCommands(r *cmdroute.Router, st *state.State) {
 				Data:  data,
 				St:    st,
 				Reply: replyManager,
+				Db:    q,
 			})
 
 			if err != nil {
