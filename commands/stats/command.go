@@ -2,13 +2,11 @@ package stats
 
 import (
 	"fmt"
-	"runtime"
-	"time"
-
-	"go.fm/commands"
-
 	"github.com/diamondburned/arikawa/v3/api"
 	"github.com/diamondburned/arikawa/v3/discord"
+	"go.fm/commands"
+	"runtime"
+	"time"
 )
 
 var startTime = time.Now()

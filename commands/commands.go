@@ -2,25 +2,13 @@ package commands
 
 import (
 	"context"
-
 	"github.com/diamondburned/arikawa/v3/api"
 	"github.com/diamondburned/arikawa/v3/api/cmdroute"
 	"github.com/diamondburned/arikawa/v3/state"
-
 	"go.fm/db"
 	"go.fm/pkg/reply"
 	"go.fm/zlog"
 )
-
-type CommandContext struct {
-	Ctx   context.Context
-	Data  cmdroute.CommandData
-	St    *state.State
-	Reply *reply.ResponseManager
-	Db    *db.Queries
-}
-
-type CommandHandler func(c *CommandContext) error
 
 var allCommands = []api.CreateCommandData{}
 var registry = map[string]CommandHandler{}
@@ -38,11 +26,11 @@ func RegisterCommands(r *cmdroute.Router, st *state.State, q *db.Queries) {
 		r.AddFunc(name, func(ctx context.Context, data cmdroute.CommandData) *api.InteractionResponseData {
 			replyManager := reply.New(st, data.Event)
 			err := h(&CommandContext{
-				Ctx:   ctx,
-				Data:  data,
-				St:    st,
-				Reply: replyManager,
-				Db:    q,
+				Context: ctx,
+				Data:    data,
+				State:   st,
+				Reply:   replyManager,
+				Query:   q,
 			})
 
 			if err != nil {

@@ -3,13 +3,12 @@ package reply
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/diamondburned/arikawa/v3/api"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/arikawa/v3/state"
 	"github.com/diamondburned/arikawa/v3/utils/json/option"
 	"go.fm/pkg/emojis"
+	"time"
 )
 
 type ResponseManager struct {

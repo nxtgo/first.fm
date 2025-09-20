@@ -31,7 +31,7 @@ func handler(c *commands.CommandContext) error {
 
 		userID := c.Data.Event.Member.User.ID
 
-		user, err := c.Db.GetUserByLastFM(c.Ctx, options.Username)
+		user, err := c.Query.GetUserByLastFM(c.Context, options.Username)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("failed to check username: %w", err)
 		}
@@ -42,7 +42,7 @@ func handler(c *commands.CommandContext) error {
 			return fmt.Errorf("your username is already set to **%s**", options.Username)
 		}
 
-		err = c.Db.UpsertUser(c.Ctx, db.UpsertUserParams{
+		err = c.Query.UpsertUser(c.Context, db.UpsertUserParams{
 			UserID:         userID.String(),
 			LastfmUsername: options.Username,
 		})
@@ -54,6 +54,7 @@ func handler(c *commands.CommandContext) error {
 		return err
 	})
 }
+
 func init() {
 	commands.Register(data, handler)
 }

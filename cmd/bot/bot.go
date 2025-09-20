@@ -2,17 +2,15 @@ package main
 
 import (
 	"context"
-	"os"
-
 	"github.com/diamondburned/arikawa/v3/api/cmdroute"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/arikawa/v3/gateway"
 	"github.com/diamondburned/arikawa/v3/state"
-
 	"go.fm/commands"
 	"go.fm/db"
 	"go.fm/events"
 	"go.fm/zlog"
+	"os"
 )
 
 func main() {
