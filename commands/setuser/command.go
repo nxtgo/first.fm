@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/diamondburned/arikawa/v3/api"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"go.fm/commands"
 	"go.fm/db"
+	lastfm "go.fm/last.fm"
 	"go.fm/pkg/reply"
 )
 
@@ -27,6 +29,10 @@ func handler(c *commands.CommandContext) error {
 	return c.Reply.AutoDefer(func(edit *reply.EditBuilder) error {
 		if err := c.Data.Options.Unmarshal(&options); err != nil {
 			return err
+		}
+
+		if _, err := c.Last.User.GetInfo(lastfm.P{"user": options.Username}); err != nil {
+			return fmt.Errorf("user **%s** doesn't exist in last.fm", options.Username)
 		}
 
 		userID := c.Data.Event.Member.User.ID
