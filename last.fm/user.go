@@ -3,6 +3,8 @@ package lastfm
 import (
 	"encoding/xml"
 	"fmt"
+
+	"go.fm/zlog"
 )
 
 type UserService struct {
@@ -32,6 +34,14 @@ func (s *UserService) GetInfo(params P) (*User, error) {
 		return nil, fmt.Errorf("user parameter is required")
 	}
 
+	key := GenerateCacheKey("user.getinfo", params)
+	zlog.Log.Debugf("using cache key %s", key)
+
+	if user, cached := s.client.Cache.User.Get(key); cached {
+		zlog.Log.Debug("using cached user")
+		return &user, nil
+	}
+
 	body, err := s.client.makeRequest("user.getinfo", params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %w", err)
@@ -41,6 +51,8 @@ func (s *UserService) GetInfo(params P) (*User, error) {
 	if err := xml.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
+
+	s.client.Cache.User.Set(key, response.User, 0)
 
 	return &response.User, nil
 }

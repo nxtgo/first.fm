@@ -1,8 +1,6 @@
 package reply
 
 import (
-	"fmt"
-
 	"github.com/nxtgo/arikawa/v3/api"
 	"github.com/nxtgo/arikawa/v3/discord"
 	"github.com/nxtgo/arikawa/v3/utils/json"
@@ -66,11 +64,5 @@ func (eb *EditBuilder) Clear() *EditBuilder {
 }
 
 func (eb *EditBuilder) Send() (*discord.Message, error) {
-	raw, err := json.Marshal(eb.data)
-	if err != nil {
-		fmt.Printf("Failed to marshal eb.data: %v\n", err)
-	} else {
-		fmt.Printf("EditBuilder data:\n%s\n", string(raw))
-	}
 	return eb.manager.state.EditInteractionResponse(eb.manager.appID, eb.manager.token, eb.data)
 }

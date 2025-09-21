@@ -2,9 +2,6 @@ package commands
 
 import (
 	"context"
-	"os"
-	"time"
-
 	"github.com/nxtgo/arikawa/v3/api"
 	"github.com/nxtgo/arikawa/v3/api/cmdroute"
 	"github.com/nxtgo/arikawa/v3/state"
@@ -12,6 +9,8 @@ import (
 	lastfm "go.fm/last.fm"
 	"go.fm/pkg/reply"
 	"go.fm/zlog"
+	"os"
+	"time"
 )
 
 var allCommands = []api.CreateCommandData{}
@@ -24,7 +23,7 @@ func Register(meta api.CreateCommandData, handler CommandHandler) {
 	registry[meta.Name] = handler
 }
 
-func RegisterCommands(r *cmdroute.Router, st *state.State, q *db.Queries) {
+func RegisterCommands(r *cmdroute.Router, st *state.State, q *db.Queries, c *lastfm.Cache) {
 	lastFMApiKey := os.Getenv("LASTFM_API_KEY")
 	if lastFMApiKey == "" {
 		zlog.Log.Fatal("missing LASTFM_API_KEY env")
@@ -34,15 +33,27 @@ func RegisterCommands(r *cmdroute.Router, st *state.State, q *db.Queries) {
 		h := handler
 		r.AddFunc(name, func(ctx context.Context, data cmdroute.CommandData) *api.InteractionResponseData {
 			commandContext := &CommandContext{
+				// command mandatory stuff
 				Context: ctx,
 				Data:    data,
 				State:   st,
-				Reply:   reply.New(st, data.Event),
-				Query:   q,
-				Last:    lastfm.NewServicesWithAPIKey(lastFMApiKey, lastfm.WithTimeout(time.Second*15)),
+
+				// reply helper
+				Reply: reply.New(st, data.Event),
+
+				// database
+				Query: q,
+
+				// last.fm stuff
+				Last:  lastfm.NewServices(lastFMApiKey, c),
+				Cache: c,
 			}
 
+			// debugging purposes
+			start := time.Now()
 			err := h(commandContext)
+			zlog.Log.Debugw("executed command %s", zlog.F{"time": time.Since(start)}, name)
+			// debugging purposes
 			if err != nil {
 				zlog.Log.Warn(err.Error())
 				commandContext.Reply.QuickEmbed(reply.ErrorEmbed(err.Error()))

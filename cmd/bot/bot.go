@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+
 	"github.com/nxtgo/arikawa/v3/api/cmdroute"
 	"github.com/nxtgo/arikawa/v3/discord"
 	"github.com/nxtgo/arikawa/v3/gateway"
@@ -9,8 +11,8 @@ import (
 	"go.fm/commands"
 	"go.fm/db"
 	"go.fm/events"
+	lastfm "go.fm/last.fm"
 	"go.fm/zlog"
-	"os"
 )
 
 func main() {
@@ -21,6 +23,9 @@ func main() {
 
 	s := state.New("Bot " + discordToken)
 	r := cmdroute.NewRouter()
+	c := lastfm.NewCache()
+	defer c.Close()
+
 	q, db, err := db.Start(context.Background(), "file:database.db?_foreign_keys=on")
 	if err != nil {
 		zlog.Log.Fatalf("failed to connect database: %v", err)
@@ -28,7 +33,7 @@ func main() {
 	defer db.Close()
 
 	// register commands
-	commands.RegisterCommands(r, s, q)
+	commands.RegisterCommands(r, s, q, c)
 
 	// command handlers
 	if err := commands.Sync(s); err != nil {

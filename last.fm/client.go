@@ -21,6 +21,7 @@ type Client struct {
 	APIKey     string
 	HTTPClient *http.Client
 	BaseURL    string
+	Cache      *Cache
 }
 
 // ClientOption represents a configuration option for the client
@@ -34,6 +35,7 @@ func NewClient(apiKey string, options ...ClientOption) *Client {
 		HTTPClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		Cache: nil,
 	}
 
 	for _, option := range options {
@@ -41,6 +43,13 @@ func NewClient(apiKey string, options ...ClientOption) *Client {
 	}
 
 	return client
+}
+
+// WithCache sets a custom cache client
+func WithCache(cache *Cache) ClientOption {
+	return func(c *Client) {
+		c.Cache = cache
+	}
 }
 
 // WithHTTPClient sets a custom HTTP client

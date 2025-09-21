@@ -6,5 +6,7 @@ github.com/mattn/go-sqlite3 v1.14.32 h1:JD12Ag3oLy1zQA+BNn74xRgaBbdhbNIDYvQUEuuE
 github.com/mattn/go-sqlite3 v1.14.32/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
 github.com/nxtgo/arikawa/v3 v3.0.0-20250921013437-308638597d52 h1:xzaKaxK3MrnBsSkGTvhXLFPKPOhRYkar6KB1AyX7GPo=
 github.com/nxtgo/arikawa/v3 v3.0.0-20250921013437-308638597d52/go.mod h1:BxHFNaM4Y5w9DIiogWgvq1T7MQ3d7AbkT7ZmcJOFM98=
+github.com/nxtgo/gce v0.0.0-20250910001932-ff8e22b0e630 h1:q6YDsr4P1r0iViA9p04SmBNVK2+wP6m6dLZsKXhPhDs=
+github.com/nxtgo/gce v0.0.0-20250910001932-ff8e22b0e630/go.mod h1:Lo1Rn6XM9r74u2JPtznKRojJuvZLd5e8V6dqUOP/yJo=
 golang.org/x/time v0.10.0 h1:3usCWA8tQn0L8+hFJQNgzpWbd89begxN66o1Ojdn5L4=
 golang.org/x/time v0.10.0/go.mod h1:3BpzKBy/shNhVucY/MWOyx10tF3SFh9QdLuxbVysPQM=

@@ -19,6 +19,7 @@ type CommandContext struct {
 	Reply   *reply.ResponseManager
 	Query   *db.Queries
 	Last    *lastfm.Services
+	Cache   *lastfm.Cache
 }
 
 type CommandHandler func(c *CommandContext) error
