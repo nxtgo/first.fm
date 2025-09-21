@@ -1,0 +1,75 @@
+package fm
+
+import (
+	"time"
+
+	"github.com/nxtgo/arikawa/v3/api"
+	"github.com/nxtgo/arikawa/v3/discord"
+	"go.fm/commands"
+	lastfm "go.fm/last.fm"
+	"go.fm/pkg/components"
+	"go.fm/pkg/reply"
+)
+
+var data = api.CreateCommandData{
+	Name:        "fm",
+	Description: "display your current track or another user's",
+	Options: discord.CommandOptions{
+		discord.NewStringOption("user", "user to display track from", false),
+	},
+}
+
+var options struct {
+	User *string `discord:"user"`
+}
+
+func handler(c *commands.CommandContext) error {
+	return c.Reply.AutoDefer(func(edit *reply.EditBuilder) error {
+		if err := c.Data.Options.Unmarshal(&options); err != nil {
+			return err
+		}
+
+		username, err := c.GetUserOrFallback()
+		if err != nil {
+			return err
+		}
+
+		res, err := c.Last.User.GetRecentTracks(lastfm.P{"user": username, "limit": 1})
+		if err != nil {
+			return err
+		}
+
+		var container *components.Container
+
+		lastTrack := res.Tracks[0]
+		if lastTrack.NowPlaying == "true" {
+			container = components.NewContainer(703487,
+				components.NewSection(
+					components.NewTextDisplayf("# %s", lastTrack.Name),
+					components.NewTextDisplayf("**%s** **·** %s", lastTrack.Artist.Name, lastTrack.Album.Name),
+					components.NewTextDisplayf("-# *Current track for %s*", res.User),
+				).WithAccessory(components.NewThumbnail(lastTrack.GetLargestImage().URL)),
+			)
+		} else {
+			playtime, err := lastTrack.GetPlayTime()
+			if err != nil {
+				playtime = time.Now()
+			}
+
+			container = components.NewContainer(703487,
+				components.NewSection(
+					components.NewTextDisplayf("# %s", lastTrack.Name),
+					components.NewTextDisplayf("**%s** **·** %s", lastTrack.Artist.Name, lastTrack.Album.Name),
+					components.NewTextDisplayf("-# *Last track for %s, scrobbled at %s*", res.User, playtime.Format(time.Kitchen)),
+				).WithAccessory(components.NewThumbnail(lastTrack.GetLargestImage().URL)),
+			)
+		}
+
+		_, err = edit.ComponentsV2(container).Send()
+		return err
+	})
+}
+
+func init() {
+	commands.Register(data, handler)
+}

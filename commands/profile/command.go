@@ -43,7 +43,7 @@ func handler(c *commands.CommandContext) error {
 			).WithAccessory(
 				components.NewThumbnail(user.GetLargestImage().URL),
 			),
-			components.NewTextDisplay("profile test"),
+			components.NewTextDisplay("this command is wip."),
 			components.NewDivider(),
 		)
 
