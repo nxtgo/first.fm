@@ -3,6 +3,7 @@ package components
 import "fmt"
 
 type ComponentType int
+type ButtonStyle int
 
 const (
 	TypeActionRow   ComponentType = 1
@@ -12,6 +13,13 @@ const (
 	TypeSection     ComponentType = 9
 	TypeDivider     ComponentType = 14
 	TypeContainer   ComponentType = 17
+)
+const (
+	ButtonStylePrimary ButtonStyle = iota + 1
+	ButtonStyleSecondary
+	ButtonStyleSuccess
+	ButtonStyleDanger
+	ButtonStyleLink
 )
 
 type Component interface {
@@ -75,16 +83,19 @@ func (a *ActionRow) componentType() ComponentType { return TypeActionRow }
 
 type Button struct {
 	Type     ComponentType `json:"type"`
-	Style    int           `json:"style"`
+	Style    ButtonStyle   `json:"style"`
 	Label    string        `json:"label"`
-	CustomID string        `json:"custom_id"`
+	CustomID *string       `json:"custom_id,omitempty"`
 	Emoji    *Emoji        `json:"emoji,omitempty"`
+	URL      *string       `json:"url,omitempty"`
 }
 
 func (b *Button) componentType() ComponentType { return TypeButton }
 
 type Emoji struct {
-	Name string `json:"name"`
+	Name     *string `json:"name,omitempty"`
+	ID       string  `json:"id"`
+	Animated bool    `json:"animated"`
 }
 
 func NewContainer(accent int, children ...Component) *Container {
@@ -120,11 +131,16 @@ func NewActionRow(children ...Component) *ActionRow {
 	return &ActionRow{Type: TypeActionRow, Components: children}
 }
 
-func NewButton(style int, label, customID string) *Button {
+func NewButton(style ButtonStyle, label string, customID *string) *Button {
 	return &Button{Type: TypeButton, Style: style, Label: label, CustomID: customID}
 }
 
-func (b *Button) WithEmoji(name string) *Button {
-	b.Emoji = &Emoji{Name: name}
+func (b *Button) WithURL(url string) *Button {
+	b.URL = &url
+	return b
+}
+
+func (b *Button) WithEmoji(id string) *Button {
+	b.Emoji = &Emoji{ID: id}
 	return b
 }

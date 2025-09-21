@@ -39,31 +39,30 @@ func handler(c *commands.CommandContext) error {
 			return err
 		}
 
-		var container *components.Container
+		var text *components.TextDisplay
 
 		lastTrack := res.Tracks[0]
 		if lastTrack.NowPlaying == "true" {
-			container = components.NewContainer(703487,
-				components.NewSection(
-					components.NewTextDisplayf("# %s", lastTrack.Name),
-					components.NewTextDisplayf("**%s** **·** %s", lastTrack.Artist.Name, lastTrack.Album.Name),
-					components.NewTextDisplayf("-# *Current track for %s*", res.User),
-				).WithAccessory(components.NewThumbnail(lastTrack.GetLargestImage().URL)),
-			)
+			text = components.NewTextDisplayf("-# *Current track for %s*", res.User)
 		} else {
 			playtime, err := lastTrack.GetPlayTime()
 			if err != nil {
 				playtime = time.Now()
 			}
 
-			container = components.NewContainer(703487,
-				components.NewSection(
-					components.NewTextDisplayf("# %s", lastTrack.Name),
-					components.NewTextDisplayf("**%s** **·** %s", lastTrack.Artist.Name, lastTrack.Album.Name),
-					components.NewTextDisplayf("-# *Last track for %s, scrobbled at %s*", res.User, playtime.Format(time.Kitchen)),
-				).WithAccessory(components.NewThumbnail(lastTrack.GetLargestImage().URL)),
-			)
+			text = components.NewTextDisplayf("-# *Last track for %s, scrobbled at %s*", res.User, playtime.Format(time.Kitchen))
 		}
+
+		container := components.NewContainer(703487,
+			components.NewSection(
+				components.NewTextDisplayf("# %s", lastTrack.Name),
+				components.NewTextDisplayf("**%s** **·** %s", lastTrack.Artist.Name, lastTrack.Album.Name),
+				text,
+			).WithAccessory(components.NewThumbnail(lastTrack.GetLargestImage().URL)),
+			components.NewActionRow(
+				components.NewButton(components.ButtonStyleLink, "Last.fm", nil).WithEmoji("1418269025959546943").WithURL(lastTrack.URL),
+			),
+		)
 
 		_, err = edit.ComponentsV2(container).Send()
 		return err
