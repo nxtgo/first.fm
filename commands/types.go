@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/diamondburned/arikawa/v3/api/cmdroute"
-	"github.com/diamondburned/arikawa/v3/discord"
-	"github.com/diamondburned/arikawa/v3/state"
+	"github.com/nxtgo/arikawa/v3/api/cmdroute"
+	"github.com/nxtgo/arikawa/v3/discord"
+	"github.com/nxtgo/arikawa/v3/state"
 	"go.fm/db"
 	lastfm "go.fm/last.fm"
 	"go.fm/pkg/reply"

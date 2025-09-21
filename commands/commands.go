@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/diamondburned/arikawa/v3/api"
-	"github.com/diamondburned/arikawa/v3/api/cmdroute"
-	"github.com/diamondburned/arikawa/v3/state"
+	"github.com/nxtgo/arikawa/v3/api"
+	"github.com/nxtgo/arikawa/v3/api/cmdroute"
+	"github.com/nxtgo/arikawa/v3/state"
 	"go.fm/db"
 	lastfm "go.fm/last.fm"
 	"go.fm/pkg/reply"
@@ -42,15 +42,9 @@ func RegisterCommands(r *cmdroute.Router, st *state.State, q *db.Queries) {
 				Last:    lastfm.NewServicesWithAPIKey(lastFMApiKey, lastfm.WithTimeout(time.Second*15)),
 			}
 
-			defer func() {
-				if rec := recover(); rec != nil {
-					zlog.Log.Errorf("panic occurred in command handler: %v", rec)
-					commandContext.Reply.QuickEmbed(reply.ErrorEmbed("something happened :("))
-				}
-			}()
-
 			err := h(commandContext)
 			if err != nil {
+				zlog.Log.Warn(err.Error())
 				commandContext.Reply.QuickEmbed(reply.ErrorEmbed(err.Error()))
 			}
 
@@ -60,6 +54,6 @@ func RegisterCommands(r *cmdroute.Router, st *state.State, q *db.Queries) {
 }
 
 func Sync(st *state.State) error {
-	defer zlog.Log.Debug("synced commands")
+	defer zlog.Log.Infow("synced commands", zlog.F{"count": len(allCommands)})
 	return cmdroute.OverwriteCommands(st, allCommands)
 }

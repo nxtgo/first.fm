@@ -27,7 +27,7 @@ const (
 )
 
 func (l Level) String() string {
-	return [...]string{"DBG", "INF", "WRN", "ERR", "FTL"}[l]
+	return [...]string{" DBG ", " INF ", " WRN ", " ERR ", " !!! "}[l]
 }
 
 type F map[string]any
@@ -37,18 +37,18 @@ var (
 	ansiBlack = "\u001b[30m"
 
 	defaultLevelColor = map[Level]string{
-		LevelDebug: "\u001b[37m",
-		LevelInfo:  "\u001b[34m",
+		LevelDebug: "\u001b[35m",
+		LevelInfo:  "\u001b[36m",
 		LevelWarn:  "\u001b[33m",
 		LevelError: "\u001b[31m",
-		LevelFatal: "\u001b[35m",
+		LevelFatal: "\u001b[35;1m",
 	}
 	defaultLevelColorBg = map[Level]string{
-		LevelDebug: "\u001b[47m",
-		LevelInfo:  "\u001b[44m",
+		LevelDebug: "\u001b[45m",
+		LevelInfo:  "\u001b[46m",
 		LevelWarn:  "\u001b[43m",
 		LevelError: "\u001b[41m",
-		LevelFatal: "\u001b[45m",
+		LevelFatal: "\u001b[45;1m",
 	}
 )
 
@@ -185,7 +185,7 @@ func (l *Logger) Log(level Level, msg string, extra F) {
 		}
 	}
 
-	b.WriteString(" " + level.String() + " ")
+	b.WriteString(level.String())
 	if colors {
 		if c, ok := l.levelColor[level]; ok {
 			b.WriteString(ansiReset + c)
@@ -204,7 +204,17 @@ func (l *Logger) Log(level Level, msg string, extra F) {
 			if i > 0 {
 				b.WriteString(" ")
 			}
+			if colors {
+				if c, ok := l.levelColorBg[level]; ok {
+					b.WriteString(c + ansiBlack)
+				}
+			}
 			fmt.Fprintf(&b, "%s=%v", k, base[k])
+			if colors {
+				if c, ok := l.levelColor[level]; ok {
+					b.WriteString(ansiReset + c)
+				}
+			}
 		}
 	}
 	if callerStr != "" {

@@ -1,10 +1,11 @@
 package profile
 
 import (
-	"github.com/diamondburned/arikawa/v3/api"
-	"github.com/diamondburned/arikawa/v3/discord"
+	"github.com/nxtgo/arikawa/v3/api"
+	"github.com/nxtgo/arikawa/v3/discord"
 	"go.fm/commands"
 	lastfm "go.fm/last.fm"
+	"go.fm/pkg/components"
 	"go.fm/pkg/reply"
 )
 
@@ -36,7 +37,17 @@ func handler(c *commands.CommandContext) error {
 			return err
 		}
 
-		_, err = edit.Content(user.Name).Send()
+		container := components.NewContainer(703487,
+			components.NewSection(
+				components.NewTextDisplayf("# %s's profile", user.Name),
+			).WithAccessory(
+				components.NewThumbnail(user.GetLargestImage().URL),
+			),
+			components.NewTextDisplay("profile test"),
+			components.NewDivider(),
+		)
+
+		_, err = edit.ComponentsV2(container).Send()
 		return err
 	})
 }

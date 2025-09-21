@@ -3,8 +3,8 @@ module go.fm
 go 1.25.0
 
 require (
-	github.com/diamondburned/arikawa/v3 v3.6.0
 	github.com/mattn/go-sqlite3 v1.14.32
+	github.com/nxtgo/arikawa/v3 v3.0.0-20250921013437-308638597d52
 )
 
 require (

@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"github.com/diamondburned/arikawa/v3/api/cmdroute"
-	"github.com/diamondburned/arikawa/v3/discord"
-	"github.com/diamondburned/arikawa/v3/gateway"
-	"github.com/diamondburned/arikawa/v3/state"
+	"github.com/nxtgo/arikawa/v3/api/cmdroute"
+	"github.com/nxtgo/arikawa/v3/discord"
+	"github.com/nxtgo/arikawa/v3/gateway"
+	"github.com/nxtgo/arikawa/v3/state"
 	"go.fm/commands"
 	"go.fm/db"
 	"go.fm/events"
@@ -40,7 +40,6 @@ func main() {
 	for _, event := range events.Events {
 		s.AddHandler(event)
 	}
-	zlog.Log.Debugf("added %d event handlers", len(events.Events))
 
 	// bot intents
 	s.AddIntents(gateway.IntentGuildMembers)

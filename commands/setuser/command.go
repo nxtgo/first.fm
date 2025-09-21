@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/diamondburned/arikawa/v3/api"
-	"github.com/diamondburned/arikawa/v3/discord"
+	"github.com/nxtgo/arikawa/v3/api"
+	"github.com/nxtgo/arikawa/v3/discord"
 	"go.fm/commands"
 	"go.fm/db"
 	lastfm "go.fm/last.fm"

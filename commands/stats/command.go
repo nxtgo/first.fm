@@ -2,8 +2,7 @@ package stats
 
 import (
 	"fmt"
-	"github.com/diamondburned/arikawa/v3/api"
-	"github.com/diamondburned/arikawa/v3/discord"
+	"github.com/nxtgo/arikawa/v3/api"
 	"go.fm/commands"
 	"runtime"
 	"time"
@@ -22,7 +21,7 @@ func handler(c *commands.CommandContext) error {
 
 	uptime := time.Since(startTime).Round(time.Second)
 
-	embed := discord.Embed{Description: fmt.Sprintf(
+	stats := fmt.Sprintf(
 		"**uptime:** %s\n"+
 			"**goroutines:** %d\n"+
 			"**memory:** %.2f mb\n"+
@@ -38,9 +37,20 @@ func handler(c *commands.CommandContext) error {
 		runtime.Version(),
 		runtime.GOOS,
 		runtime.GOARCH,
-	)}
+	)
 
-	return c.Reply.QuickEmbed(embed)
+	container := map[string]any{
+		"accent_color": 703487,
+		"type":         17,
+		"components": []any{
+			map[string]any{
+				"type":    10,
+				"content": stats,
+			},
+		},
+	}
+
+	return c.Reply.Reply().Flags(1 << 15).ComponentsV2(container).Send()
 }
 
 func init() {
