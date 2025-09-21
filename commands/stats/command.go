@@ -2,10 +2,12 @@ package stats
 
 import (
 	"fmt"
-	"github.com/nxtgo/arikawa/v3/api"
-	"go.fm/commands"
 	"runtime"
 	"time"
+
+	"github.com/nxtgo/arikawa/v3/api"
+	"go.fm/commands"
+	"go.fm/pkg/components"
 )
 
 var startTime = time.Now()
@@ -39,16 +41,9 @@ func handler(c *commands.CommandContext) error {
 		runtime.GOARCH,
 	)
 
-	container := map[string]any{
-		"accent_color": 703487,
-		"type":         17,
-		"components": []any{
-			map[string]any{
-				"type":    10,
-				"content": stats,
-			},
-		},
-	}
+	container := components.NewContainer(703487,
+		components.NewTextDisplay(stats),
+	)
 
 	return c.Reply.Reply().Flags(1 << 15).ComponentsV2(container).Send()
 }
