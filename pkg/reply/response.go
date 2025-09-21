@@ -65,6 +65,7 @@ func (rb *ResponseBuilder) Embeds(embeds ...discord.Embed) *ResponseBuilder {
 }
 
 func (rb *ResponseBuilder) ComponentsV2(components any) *ResponseBuilder {
+	rb.Flags(1 << 15)
 	raw, _ := json.Marshal(components)
 
 	comp, err := discord.ParseComponent(raw)

@@ -45,7 +45,7 @@ func handler(c *commands.CommandContext) error {
 		components.NewTextDisplay(stats),
 	)
 
-	return c.Reply.Reply().Flags(1 << 15).ComponentsV2(container).Send()
+	return c.Reply.Reply().ComponentsV2(container).Send()
 }
 
 func init() {
