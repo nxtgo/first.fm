@@ -106,12 +106,12 @@ func (t *RecentTrack) GetImageBySize(size string) *Image {
 
 // RecentTracks represents the recent tracks response
 type RecentTracks struct {
-	User       string  `xml:"user,attr"`
-	Page       int     `xml:"page,attr"`
-	PerPage    int     `xml:"perPage,attr"`
-	TotalPages int     `xml:"totalPages,attr"`
-	Total      int     `xml:"total,attr"`
-	Tracks     []Track `xml:"track"`
+	User       string        `xml:"user,attr"`
+	Page       int           `xml:"page,attr"`
+	PerPage    int           `xml:"perPage,attr"`
+	TotalPages int           `xml:"totalPages,attr"`
+	Total      int           `xml:"total,attr"`
+	Tracks     []RecentTrack `xml:"track"`
 }
 
 func (t Timestamp) Time() (time.Time, error) {
