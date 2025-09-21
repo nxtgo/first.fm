@@ -10,10 +10,11 @@ your last.fm stats within Discord, isn't it great?
 $ git clone https://github.com/nxtgo/go.fm
 ```
 
-### create an .env
+### create a .env
 
 ```env
 DISCORD_TOKEN=token_here
+LASTFM_API_KEY=your_api_owo
 ```
 
 ### run using Makefile
