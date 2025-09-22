@@ -25,7 +25,7 @@ var options struct {
 	Data string  `discord:"data"`
 }
 
-// todo: data types
+// todo: let the user know which data is available to update
 func handler(c *commands.CommandContext) error {
 	return c.Reply.AutoDefer(func(edit *reply.EditBuilder) error {
 		if err := c.Data.Options.Unmarshal(&options); err != nil {
@@ -48,6 +48,12 @@ func handler(c *commands.CommandContext) error {
 			switch t {
 			case "profile", "getinfo":
 				go c.Last.User.GetInfo(userParams)
+			case "topalbums":
+				go c.Last.User.GetTopAlbums(userParams)
+			case "topartists":
+				go c.Last.User.GetTopArtists(userParams)
+			case "toptracks":
+				go c.Last.User.GetTopTracks(userParams)
 			default:
 				return fmt.Errorf("unknown data type: %s", t)
 			}

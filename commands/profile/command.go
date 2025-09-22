@@ -37,13 +37,18 @@ func handler(c *commands.CommandContext) error {
 			return err
 		}
 
+		topAlbumsRes, err := c.Last.User.GetTopAlbums(lastfm.P{"user": username})
+		if err != nil {
+			return err
+		}
+
 		container := components.NewContainer(703487,
 			components.NewSection(
 				components.NewTextDisplayf("# %s's profile", user.Name),
 			).WithAccessory(
 				components.NewThumbnail(user.GetLargestImage().URL),
 			),
-			components.NewTextDisplay("this command is wip."),
+			components.NewTextDisplayf("you have %d top albums", topAlbumsRes.Total),
 			components.NewDivider(),
 		)
 

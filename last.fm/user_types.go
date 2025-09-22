@@ -1,6 +1,10 @@
 package lastfm
 
 import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -31,6 +35,71 @@ type Timestamp struct {
 	Text     string `xml:",chardata"`
 }
 
+// TopAlbums wraps the list of albums and pagination info
+type TopAlbums struct {
+	User       string     `xml:"user,attr"`
+	Page       int        `xml:"page,attr"`
+	PerPage    int        `xml:"perPage,attr"`
+	TotalPages int        `xml:"totalPages,attr"`
+	Total      int        `xml:"total,attr"`
+	Albums     []TopAlbum `xml:"album"`
+}
+
+// TopAlbum represents a single album
+type TopAlbum struct {
+	Rank      int            `xml:"rank,attr"`
+	Name      string         `xml:"name"`
+	Playcount int            `xml:"playcount"`
+	MBID      string         `xml:"mbid"`
+	URL       string         `xml:"url"`
+	Artist    MinifiedArtist `xml:"artist"`
+	Images    []Image        `xml:"image"`
+}
+
+// TopArtists wraps the list of artists and pagination info
+type TopArtists struct {
+	User       string      `xml:"user,attr"`
+	Page       int         `xml:"page,attr"`
+	PerPage    int         `xml:"perPage,attr"`
+	TotalPages int         `xml:"totalPages,attr"`
+	Total      int         `xml:"total,attr"`
+	Artists    []TopArtist `xml:"artist"`
+}
+
+// TopArtist represents a single artist
+type TopArtist struct {
+	Rank       int     `xml:"rank,attr"`
+	Name       string  `xml:"name"`
+	Playcount  int     `xml:"playcount"`
+	MBID       string  `xml:"mbid"`
+	URL        string  `xml:"url"`
+	Streamable bool    `xml:"streamable"`
+	Images     []Image `xml:"image"`
+}
+
+// TopTracks wraps the list of tracks and pagination info
+type TopTracks struct {
+	User       string     `xml:"user,attr"`
+	Page       int        `xml:"page,attr"`
+	PerPage    int        `xml:"perPage,attr"`
+	TotalPages int        `xml:"totalPages,attr"`
+	Total      int        `xml:"total,attr"`
+	Tracks     []TopTrack `xml:"track"`
+}
+
+// TopTrack represents a single track
+type TopTrack struct {
+	Rank       int            `xml:"rank,attr"`
+	Name       string         `xml:"name"`
+	Duration   int            `xml:"duration"`
+	Playcount  int            `xml:"playcount"`
+	MBID       string         `xml:"mbid"`
+	URL        string         `xml:"url"`
+	Streamable bool           `xml:"streamable"` // Can be "0" or "1" in XML
+	Artist     MinifiedArtist `xml:"artist"`
+	Images     []Image        `xml:"image"`
+}
+
 // RecentTrack represents a Last.fm track
 type RecentTrack struct {
 	Artist     RecentTrackArtist `xml:"artist"`
@@ -42,6 +111,16 @@ type RecentTrack struct {
 	Images     []Image           `xml:"image"`
 	Date       *RecentTrackDate  `xml:"date"`
 	NowPlaying string            `xml:"nowplaying,attr"`
+}
+
+// RecentTracks represents the recent tracks response
+type RecentTracks struct {
+	User       string        `xml:"user,attr"`
+	Page       int           `xml:"page,attr"`
+	PerPage    int           `xml:"perPage,attr"`
+	TotalPages int           `xml:"totalPages,attr"`
+	Total      int           `xml:"total,attr"`
+	Tracks     []RecentTrack `xml:"track"`
 }
 
 // RecentTrackArtist represents an artist in a track
@@ -60,6 +139,13 @@ type RecentTrackAlbum struct {
 type RecentTrackDate struct {
 	UTS  string `xml:"uts,attr"`
 	Text string `xml:",chardata"`
+}
+
+// MinifiedArtist represents the artist with less data idk
+type MinifiedArtist struct {
+	Name string `xml:"name"`
+	MBID string `xml:"mbid"`
+	URL  string `xml:"url"`
 }
 
 // IsNowPlaying returns true if the track is currently playing
@@ -104,16 +190,6 @@ func (t *RecentTrack) GetImageBySize(size string) *Image {
 	return nil
 }
 
-// RecentTracks represents the recent tracks response
-type RecentTracks struct {
-	User       string        `xml:"user,attr"`
-	Page       int           `xml:"page,attr"`
-	PerPage    int           `xml:"perPage,attr"`
-	TotalPages int           `xml:"totalPages,attr"`
-	Total      int           `xml:"total,attr"`
-	Tracks     []RecentTrack `xml:"track"`
-}
-
 func (t Timestamp) Time() (time.Time, error) {
 	if t.UnixTime == "" {
 		return time.Time{}, nil
@@ -148,4 +224,36 @@ func (u *User) GetLargestImage() Image {
 
 func (u *User) GetPlayCount() int64 {
 	return u.PlayCount
+}
+
+type deezerSearchResponse struct {
+	Data []deezerArtist `json:"data"`
+}
+
+type deezerArtist struct {
+	ID      int    `json:"id"`
+	Name    string `json:"name"`
+	Picture string `json:"picture"`
+}
+
+// GetDeezerImage fetches the artist image from Deezer
+func (a *MinifiedArtist) GetDeezerImage() (string, error) {
+	baseURL := "https://api.deezer.com/search/artist"
+	query := url.QueryEscape(a.Name)
+	resp, err := http.Get(fmt.Sprintf("%s?q=%s", baseURL, query))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var result deezerSearchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	if len(result.Data) == 0 {
+		return "", fmt.Errorf("artist not found on Deezer")
+	}
+
+	return result.Data[0].Picture, nil
 }

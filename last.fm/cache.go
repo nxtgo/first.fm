@@ -11,14 +11,29 @@ import (
 )
 
 type Cache struct {
-	User *gce.Cache[string, User]
+	User           *gce.Cache[string, User]
+	UserTopAlbums  *gce.Cache[string, TopAlbums]
+	UserTopArtists *gce.Cache[string, TopArtists]
+	UserTopTracks  *gce.Cache[string, TopTracks]
 	// todo: more cache
 }
 
 func NewCache() *Cache {
 	return &Cache{
 		User: gce.New[string, User](
-			gce.WithDefaultTTL(30*time.Minute),
+			gce.WithDefaultTTL(time.Minute*30),
+			gce.WithMaxEntries(10_000),
+		),
+		UserTopAlbums: gce.New[string, TopAlbums](
+			gce.WithDefaultTTL(time.Hour*6),
+			gce.WithMaxEntries(10_000),
+		),
+		UserTopArtists: gce.New[string, TopArtists](
+			gce.WithDefaultTTL(time.Hour*6),
+			gce.WithMaxEntries(10_000),
+		),
+		UserTopTracks: gce.New[string, TopTracks](
+			gce.WithDefaultTTL(time.Hour*6),
 			gce.WithMaxEntries(10_000),
 		),
 	}
@@ -32,11 +47,17 @@ type CacheStats struct {
 func (c *Cache) Stats() []CacheStats {
 	return []CacheStats{
 		{"User", c.User.Stats()},
+		{"UserTopAlbums", c.UserTopAlbums.Stats()},
+		{"UserTopArtists", c.UserTopArtists.Stats()},
+		{"UserTopTracks", c.UserTopTracks.Stats()},
 	}
 }
 
 func (c *Cache) Close() {
 	c.User.Close()
+	c.UserTopAlbums.Close()
+	c.UserTopArtists.Close()
+	c.UserTopTracks.Close()
 }
 
 func GenerateCacheKey(method string, args P) string {
