@@ -47,15 +47,35 @@ func handler(c *commands.CommandContext) error {
 		for _, t := range dataTypes {
 			switch t {
 			case "profile", "getinfo":
+				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.getinfo", userParams))
 				go c.Last.User.GetInfo(userParams)
+
 			case "topalbums":
+				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.gettopalbums", userParams))
 				go c.Last.User.GetTopAlbums(userParams)
+
 			case "topartists":
+				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.gettopartists", userParams))
 				go c.Last.User.GetTopArtists(userParams)
+
 			case "toptracks":
+				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.gettoptracks", userParams))
 				go c.Last.User.GetTopTracks(userParams)
+
+			case "all":
+				fallthrough
 			default:
-				return fmt.Errorf("unknown data type: %s", t)
+				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.getinfo", userParams))
+				go c.Last.User.GetInfo(userParams)
+
+				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.gettopalbums", userParams))
+				go c.Last.User.GetTopAlbums(userParams)
+
+				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.gettopartists", userParams))
+				go c.Last.User.GetTopArtists(userParams)
+
+				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.gettoptracks", userParams))
+				go c.Last.User.GetTopTracks(userParams)
 			}
 		}
 

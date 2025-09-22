@@ -43,10 +43,6 @@ func (rm *ResponseManager) Defer(flags ...discord.MessageFlags) *DeferredRespons
 	return &DeferredResponse{manager: rm, err: err}
 }
 
-func (rm *ResponseManager) FollowUp() *FollowUpBuilder {
-	return &FollowUpBuilder{manager: rm, data: api.InteractionResponseData{}}
-}
-
 // no
 
 func (rb *ResponseBuilder) Content(content string) *ResponseBuilder {
@@ -56,11 +52,6 @@ func (rb *ResponseBuilder) Content(content string) *ResponseBuilder {
 
 func (rb *ResponseBuilder) Embed(embed discord.Embed) *ResponseBuilder {
 	rb.data.Embeds = &[]discord.Embed{embed}
-	return rb
-}
-
-func (rb *ResponseBuilder) Embeds(embeds ...discord.Embed) *ResponseBuilder {
-	rb.data.Embeds = &embeds
 	return rb
 }
 

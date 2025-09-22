@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -233,11 +234,11 @@ type deezerSearchResponse struct {
 type deezerArtist struct {
 	ID      int    `json:"id"`
 	Name    string `json:"name"`
-	Picture string `json:"picture"`
+	Picture string `json:"picture_big"`
 }
 
-// GetDeezerImage fetches the artist image from Deezer
-func (a *MinifiedArtist) GetDeezerImage() (string, error) {
+// GetDeezerImage fetches the artist image from Deezer matching the exact name
+func (a *TopArtist) GetDeezerImage() (string, error) {
 	baseURL := "https://api.deezer.com/search/artist"
 	query := url.QueryEscape(a.Name)
 	resp, err := http.Get(fmt.Sprintf("%s?q=%s", baseURL, query))
@@ -251,9 +252,11 @@ func (a *MinifiedArtist) GetDeezerImage() (string, error) {
 		return "", err
 	}
 
-	if len(result.Data) == 0 {
-		return "", fmt.Errorf("artist not found on Deezer")
+	for _, artist := range result.Data {
+		if strings.EqualFold(artist.Name, a.Name) {
+			return artist.Picture, nil
+		}
 	}
 
-	return result.Data[0].Picture, nil
+	return "", fmt.Errorf("artist %q not found on Deezer", a.Name)
 }

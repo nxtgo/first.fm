@@ -5,6 +5,7 @@ import (
 	"github.com/nxtgo/arikawa/v3/discord"
 	"github.com/nxtgo/arikawa/v3/utils/json"
 	"github.com/nxtgo/arikawa/v3/utils/json/option"
+	"github.com/nxtgo/arikawa/v3/utils/sendpart"
 )
 
 type EditBuilder struct {
@@ -17,13 +18,13 @@ func (eb *EditBuilder) Content(content string) *EditBuilder {
 	return eb
 }
 
-func (eb *EditBuilder) Embed(embed discord.Embed) *EditBuilder {
-	eb.data.Embeds = &[]discord.Embed{embed}
+func (eb *EditBuilder) File(file sendpart.File) *EditBuilder {
+	eb.data.Files = append(eb.data.Files, file)
 	return eb
 }
 
-func (eb *EditBuilder) Embeds(embeds ...discord.Embed) *EditBuilder {
-	eb.data.Embeds = &embeds
+func (eb *EditBuilder) Embed(embed discord.Embed) *EditBuilder {
+	eb.data.Embeds = &[]discord.Embed{embed}
 	return eb
 }
 

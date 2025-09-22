@@ -8,5 +8,9 @@ github.com/nxtgo/arikawa/v3 v3.0.0-20250921013437-308638597d52 h1:xzaKaxK3MrnBsS
 github.com/nxtgo/arikawa/v3 v3.0.0-20250921013437-308638597d52/go.mod h1:BxHFNaM4Y5w9DIiogWgvq1T7MQ3d7AbkT7ZmcJOFM98=
 github.com/nxtgo/gce v0.0.0-20250910001932-ff8e22b0e630 h1:q6YDsr4P1r0iViA9p04SmBNVK2+wP6m6dLZsKXhPhDs=
 github.com/nxtgo/gce v0.0.0-20250910001932-ff8e22b0e630/go.mod h1:Lo1Rn6XM9r74u2JPtznKRojJuvZLd5e8V6dqUOP/yJo=
+golang.org/x/image v0.31.0 h1:mLChjE2MV6g1S7oqbXC0/UcKijjm5fnJLUYKIYrLESA=
+golang.org/x/image v0.31.0/go.mod h1:R9ec5Lcp96v9FTF+ajwaH3uGxPH4fKfHHAVbUILxghA=
+golang.org/x/text v0.29.0 h1:1neNs90w9YzJ9BocxfsQNHKuAT4pkghyXc4nhZ6sJvk=
+golang.org/x/text v0.29.0/go.mod h1:7MhJOA9CD2qZyOKYazxdYMF85OwPdEr9jTtBpO7ydH4=
 golang.org/x/time v0.10.0 h1:3usCWA8tQn0L8+hFJQNgzpWbd89begxN66o1Ojdn5L4=
 golang.org/x/time v0.10.0/go.mod h1:3BpzKBy/shNhVucY/MWOyx10tF3SFh9QdLuxbVysPQM=
