@@ -1,6 +1,8 @@
 package reply
 
 import (
+	"fmt"
+
 	"github.com/nxtgo/arikawa/v3/api"
 	"github.com/nxtgo/arikawa/v3/discord"
 	"github.com/nxtgo/arikawa/v3/utils/json"
@@ -15,6 +17,11 @@ type EditBuilder struct {
 
 func (eb *EditBuilder) Content(content string) *EditBuilder {
 	eb.data.Content = option.NewNullableString(content)
+	return eb
+}
+
+func (eb *EditBuilder) Contentf(content string, args ...any) *EditBuilder {
+	eb.data.Content = option.NewNullableString(fmt.Sprintf(content, args...))
 	return eb
 }
 

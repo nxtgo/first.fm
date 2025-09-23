@@ -55,7 +55,7 @@ func (rm *ResponseManager) AutoDefer(fn func(edit *EditBuilder) error, flags ...
 	err := fn(editBuilder)
 
 	if err != nil {
-		zlog.Log.Error(err.Error())
+		zlog.Log.Warnf("command error handled correctly: %v", err)
 		_, err := editBuilder.Clear().Embed(ErrorEmbed(err.Error())).Send()
 		return err
 	}

@@ -7,8 +7,9 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
-	"image/gif"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/nxtgo/arikawa/v3/api"
 	"github.com/nxtgo/arikawa/v3/discord"
@@ -25,18 +26,23 @@ var (
 	maxGridSize   = 10
 	minGridSize   = 3
 	defaultPeriod = "overall"
+	brokenImage   image.Image
+	maxConcurrent = 8
 )
+
+var httpClient = &http.Client{
+	Transport: &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+	},
+	Timeout: 10 * time.Second,
+}
 
 type Entry struct {
 	Image  image.Image
 	Name   string
 	Artist string
-}
-
-type deezerSearchResponse struct {
-	Data []struct {
-		Picture string `json:"picture"`
-	} `json:"data"`
 }
 
 var data = api.CreateCommandData{
@@ -99,29 +105,7 @@ func handler(c *commands.CommandContext) error {
 			return err
 		}
 
-		brokenImage, _ := imgio.Open("assets/img/broken.png")
-		brokenImage = transform.Resize(brokenImage, 300, 300, transform.Gaussian)
-
-		fetchImage := func(url string) image.Image {
-			resp, err := http.Get(url)
-			if err != nil {
-				return brokenImage
-			}
-			defer resp.Body.Close()
-
-			img, _, err := image.Decode(resp.Body)
-			if err == nil {
-				return img
-			}
-
-			gifImg, err := gif.Decode(resp.Body)
-			if err != nil {
-				return brokenImage
-			}
-			return gifImg
-		}
-
-		var entries []Entry
+		entries := make([]Entry, 0, gridSize*gridSize)
 
 		switch options.Type {
 		case "artist":
@@ -130,15 +114,25 @@ func handler(c *commands.CommandContext) error {
 				return err
 			}
 
-			for _, a := range topArtists.Artists {
+			urls := make([]string, len(topArtists.Artists))
+			names := make([]string, len(topArtists.Artists))
+			for i, a := range topArtists.Artists {
 				imgURL, err := a.GetDeezerImage()
 				if err != nil || imgURL == "" {
-					entries = append(entries, Entry{Image: brokenImage, Name: a.Name})
-					continue
+					urls[i] = ""
+				} else {
+					urls[i] = imgURL
 				}
-				img := fetchImage(imgURL)
-				img = transform.Resize(img, 300, 300, transform.Gaussian)
-				entries = append(entries, Entry{Image: img, Name: a.Name})
+				names[i] = a.Name
+			}
+			fetched := fetchEntries(urls)
+			for i, e := range fetched {
+				if e.Image == nil {
+					e.Image = brokenImage
+				}
+				e.Image = transform.Resize(e.Image, 300, 300, transform.NearestNeighbor)
+				e.Name = names[i]
+				entries = append(entries, e)
 			}
 
 		case "track":
@@ -146,12 +140,25 @@ func handler(c *commands.CommandContext) error {
 			if err != nil {
 				return err
 			}
-			for _, t := range topTracks.Tracks {
-				img := brokenImage
+
+			urls := make([]string, len(topTracks.Tracks))
+			names := make([]string, len(topTracks.Tracks))
+			artists := make([]string, len(topTracks.Tracks))
+			for i, t := range topTracks.Tracks {
 				if len(t.Images) > 0 {
-					img = fetchImage(t.Images[len(t.Images)-1].URL)
+					urls[i] = t.Images[len(t.Images)-1].URL
 				}
-				entries = append(entries, Entry{Image: img, Name: t.Name, Artist: t.Artist.Name})
+				names[i] = t.Name
+				artists[i] = t.Artist.Name
+			}
+			fetched := fetchEntries(urls)
+			for i, e := range fetched {
+				if e.Image == nil {
+					e.Image = brokenImage
+				}
+				e.Name = names[i]
+				e.Artist = artists[i]
+				entries = append(entries, e)
 			}
 
 		case "album":
@@ -159,12 +166,25 @@ func handler(c *commands.CommandContext) error {
 			if err != nil {
 				return err
 			}
-			for _, a := range topAlbums.Albums {
-				img := brokenImage
+
+			urls := make([]string, len(topAlbums.Albums))
+			names := make([]string, len(topAlbums.Albums))
+			artists := make([]string, len(topAlbums.Albums))
+			for i, a := range topAlbums.Albums {
 				if len(a.Images) > 0 {
-					img = fetchImage(a.Images[len(a.Images)-1].URL)
+					urls[i] = a.Images[len(a.Images)-1].URL
 				}
-				entries = append(entries, Entry{Image: img, Name: a.Name, Artist: a.Artist.Name})
+				names[i] = a.Name
+				artists[i] = a.Artist.Name
+			}
+			fetched := fetchEntries(urls)
+			for i, e := range fetched {
+				if e.Image == nil {
+					e.Image = brokenImage
+				}
+				e.Name = names[i]
+				e.Artist = artists[i]
+				entries = append(entries, e)
 			}
 		}
 
@@ -172,9 +192,11 @@ func handler(c *commands.CommandContext) error {
 			return errors.New("no entries found")
 		}
 
-		inter := font.LoadFont("assets/font/Inter_24pt-Regular.ttf")
-		labelFace := inter.Face(20, 72)
-		subFace := inter.Face(16, 72)
+		interRegular := font.LoadFont("assets/font/Inter_24pt-Regular.ttf")
+		interBold := font.LoadFont("assets/font/Inter_24pt-Bold.ttf")
+
+		labelFace := interBold.Face(20, 72)
+		subFace := interRegular.Face(16, 72)
 
 		firstBounds := entries[0].Image.Bounds()
 		cellWidth := firstBounds.Dx()
@@ -188,6 +210,9 @@ func handler(c *commands.CommandContext) error {
 			return err
 		}
 
+		labelAscent := labelFace.Metrics().Ascent.Ceil()
+		subAscent := subFace.Metrics().Ascent.Ceil()
+
 		for i, entry := range entries {
 			row := i / gridSize
 			col := i % gridSize
@@ -197,10 +222,11 @@ func handler(c *commands.CommandContext) error {
 
 			draw.Draw(canvas, rect, entry.Image, image.Point{}, draw.Over)
 			draw.Draw(canvas, rect, chartGradient, image.Point{}, draw.Over)
-			font.DrawText(canvas, x+15, y+labelFace.Metrics().Ascent.Ceil()+15, entry.Name, color.White, labelFace)
+
+			font.DrawText(canvas, x+15, y+labelAscent+15, entry.Name, color.White, labelFace)
 
 			if entry.Artist != "" {
-				font.DrawText(canvas, x+15, y+labelFace.Metrics().Ascent.Ceil()+subFace.Metrics().Ascent.Ceil()+25,
+				font.DrawText(canvas, x+15, y+labelAscent+subAscent+20,
 					entry.Artist, color.RGBA{170, 170, 170, 255}, subFace)
 			}
 		}
@@ -210,11 +236,50 @@ func handler(c *commands.CommandContext) error {
 			return err
 		}
 
-		_, err = edit.File(sendpart.File{Name: "chart.png", Reader: bytes.NewReader(result)}).Send()
+		_, err = edit.Contentf("%s %s chart for %s", period, options.Type, username).File(sendpart.File{Name: "chart.png", Reader: bytes.NewReader(result)}).Send()
 		return err
 	})
 }
 
 func init() {
+	// todo: remove this in the future*
+	brokenImage, _ = imgio.Open("assets/img/broken.png")
+	brokenImage = transform.Resize(brokenImage, 300, 300, transform.NearestNeighbor)
 	commands.Register(data, handler)
+}
+
+func fetchImage(url string) image.Image {
+	if url == "" {
+		return nil
+	}
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	img, _, err := image.Decode(resp.Body)
+	if err != nil {
+		return nil
+	}
+	return img
+}
+
+func fetchEntries(urls []string) []Entry {
+	entries := make([]Entry, len(urls))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, maxConcurrent)
+
+	for i, url := range urls {
+		i, url := i, url
+		wg.Go(func() {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			entries[i].Image = fetchImage(url)
+		})
+	}
+
+	wg.Wait()
+	return entries
 }

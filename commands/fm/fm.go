@@ -5,6 +5,7 @@ import (
 
 	"github.com/nxtgo/arikawa/v3/api"
 	"github.com/nxtgo/arikawa/v3/discord"
+	"go.fm/bild/colors"
 	"go.fm/commands"
 	lastfm "go.fm/last.fm"
 	"go.fm/pkg/components"
@@ -53,12 +54,18 @@ func handler(c *commands.CommandContext) error {
 			text = components.NewTextDisplayf("-# *Last track for %s, scrobbled at %s*", res.User, playtime.Format(time.Kitchen))
 		}
 
-		container := components.NewContainer(703487,
+		thumbnail := lastTrack.GetLargestImage().URL
+		color := 0x703487
+		if dominantColor, err := colors.Dominant(thumbnail); err == nil {
+			color = dominantColor
+		}
+
+		container := components.NewContainer(color,
 			components.NewSection(
 				components.NewTextDisplayf("# %s", lastTrack.Name),
 				components.NewTextDisplayf("**%s** **·** %s", lastTrack.Artist.Name, lastTrack.Album.Name),
 				text,
-			).WithAccessory(components.NewThumbnail(lastTrack.GetLargestImage().URL)),
+			).WithAccessory(components.NewThumbnail(thumbnail)),
 			components.NewActionRow(
 				components.NewButton(components.ButtonStyleLink, "Last.fm", nil).WithEmoji("1418269025959546943").WithURL(lastTrack.URL),
 			),

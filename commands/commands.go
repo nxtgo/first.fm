@@ -53,9 +53,8 @@ func RegisterCommands(r *cmdroute.Router, st *state.State, q *db.Queries, c *las
 			start := time.Now()
 			err := h(commandContext)
 			zlog.Log.Debugw("executed command %s", zlog.F{"time": time.Since(start)}, name)
-			// debugging purposes
+
 			if err != nil {
-				zlog.Log.Warn(err.Error())
 				commandContext.Reply.QuickEmbed(reply.ErrorEmbed(err.Error()))
 			}
 

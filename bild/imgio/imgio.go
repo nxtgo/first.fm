@@ -64,6 +64,31 @@ func Fetch(url string) ([]byte, error) {
 	return data, nil
 }
 
+// FromUrl retrieves an image from the given URL and decodes it.
+func FromUrl(url string) (image.Image, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch image: %s", resp.Status)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+
+	return img, nil
+}
+
 // DecodeImage loads and decodes an image from a byte slice and returns it.
 //
 // Usage example:
