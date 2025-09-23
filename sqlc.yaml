@@ -2,13 +2,13 @@ version: "2"
 
 sql:
   - engine: "sqlite"
-    schema: "db/sql/schema.sql"
-    queries: "db/sql/queries.sql"
+    schema: "internal/bot/persistence/sql/schema.sql"
+    queries: "internal/bot/persistence/sql/queries.sql"
     database:
       uri: "file:database.db?_foreign_keys=on"
     gen:
       go:
-        package: "db"
-        out: "db"
+        package: "sqlc"
+        out: "internal/bot/persistence/sqlc"
         emit_prepared_queries: true
         emit_interface: false

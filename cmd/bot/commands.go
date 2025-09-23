@@ -1,10 +1,10 @@
 package main
 
 import (
-	_ "go.fm/commands/chart"
-	_ "go.fm/commands/fm"
-	_ "go.fm/commands/profile"
-	_ "go.fm/commands/setuser"
-	_ "go.fm/commands/stats"
-	_ "go.fm/commands/update"
+	_ "go.fm/internal/bot/commands/chart"
+	_ "go.fm/internal/bot/commands/fm"
+	_ "go.fm/internal/bot/commands/profile"
+	_ "go.fm/internal/bot/commands/setuser"
+	_ "go.fm/internal/bot/commands/stats"
+	_ "go.fm/internal/bot/commands/update"
 )
