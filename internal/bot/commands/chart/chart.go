@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"image/color"
-	"image/draw"
 	"net/http"
 	"sync"
 	"time"
@@ -16,7 +14,6 @@ import (
 	"github.com/nxtgo/arikawa/v3/utils/sendpart"
 	"go.fm/internal/bot/commands"
 	"go.fm/internal/bot/discord/reply"
-	"go.fm/internal/bot/image/font"
 	"go.fm/internal/bot/image/imgio"
 	"go.fm/internal/bot/image/transform"
 	"go.fm/internal/bot/lastfm"
@@ -26,18 +23,17 @@ var (
 	maxGridSize   = 10
 	minGridSize   = 3
 	defaultPeriod = "overall"
-	brokenImage   image.Image
 	maxConcurrent = 8
-)
 
-var httpClient = &http.Client{
-	Transport: &http.Transport{
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 10,
-		IdleConnTimeout:     90 * time.Second,
-	},
-	Timeout: 10 * time.Second,
-}
+	httpClient = &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 10,
+			IdleConnTimeout:     90 * time.Second,
+		},
+		Timeout: 10 * time.Second,
+	}
+)
 
 type Entry struct {
 	Image  image.Image
@@ -59,7 +55,8 @@ var data = api.CreateCommandData{
 			},
 			Required: true,
 		},
-		discord.NewIntegerOption("grid-size", fmt.Sprintf("grid size (NxN) (min: %d, max: %d, default: min)", minGridSize, maxGridSize), false),
+		discord.NewIntegerOption("grid-size",
+			fmt.Sprintf("grid size (NxN) (min: %d, max: %d, default: min)", minGridSize, maxGridSize), false),
 		&discord.StringOption{
 			OptionName:  "period",
 			Description: fmt.Sprintf("overall, 7day, 1month, 3month, 6month or 12month (default: %s)", defaultPeriod),
@@ -71,7 +68,6 @@ var data = api.CreateCommandData{
 				{Name: "6month", Value: "6month"},
 				{Name: "12month", Value: "12month"},
 			},
-			Required: false,
 		},
 		discord.NewStringOption("user", "user to fetch chart for", false),
 	},
@@ -90,9 +86,9 @@ func handler(c *commands.CommandContext) error {
 			return err
 		}
 
-		gridSize := minGridSize
+		grid := minGridSize
 		if options.GridSize != nil {
-			gridSize = *options.GridSize
+			grid = *options.GridSize
 		}
 
 		period := defaultPeriod
@@ -100,152 +96,115 @@ func handler(c *commands.CommandContext) error {
 			period = *options.Period
 		}
 
-		username, err := c.GetUserOrFallback()
+		user, err := c.GetUserOrFallback()
 		if err != nil {
 			return err
 		}
 
-		entries := make([]Entry, 0, gridSize*gridSize)
-
-		switch options.Type {
-		case "artist":
-			topArtists, err := c.Last.User.GetTopArtists(lastfm.P{"user": username, "limit": gridSize * gridSize, "period": period})
-			if err != nil {
-				return err
-			}
-
-			urls := make([]string, len(topArtists.Artists))
-			names := make([]string, len(topArtists.Artists))
-			for i, a := range topArtists.Artists {
-				imgURL, err := a.GetDeezerImage()
-				if err != nil || imgURL == "" {
-					urls[i] = ""
-				} else {
-					urls[i] = imgURL
-				}
-				names[i] = a.Name
-			}
-			fetched := fetchEntries(urls)
-			for i, e := range fetched {
-				if e.Image == nil {
-					e.Image = brokenImage
-				}
-				e.Image = transform.Resize(e.Image, 300, 300, transform.NearestNeighbor)
-				e.Name = names[i]
-				entries = append(entries, e)
-			}
-
-		case "track":
-			topTracks, err := c.Last.User.GetTopTracks(lastfm.P{"user": username, "limit": gridSize * gridSize, "period": period})
-			if err != nil {
-				return err
-			}
-
-			urls := make([]string, len(topTracks.Tracks))
-			names := make([]string, len(topTracks.Tracks))
-			artists := make([]string, len(topTracks.Tracks))
-			for i, t := range topTracks.Tracks {
-				if len(t.Images) > 0 {
-					urls[i] = t.Images[len(t.Images)-1].URL
-				}
-				names[i] = t.Name
-				artists[i] = t.Artist.Name
-			}
-			fetched := fetchEntries(urls)
-			for i, e := range fetched {
-				if e.Image == nil {
-					e.Image = brokenImage
-				}
-				e.Name = names[i]
-				e.Artist = artists[i]
-				entries = append(entries, e)
-			}
-
-		case "album":
-			topAlbums, err := c.Last.User.GetTopAlbums(lastfm.P{"user": username, "limit": gridSize * gridSize, "period": period})
-			if err != nil {
-				return err
-			}
-
-			urls := make([]string, len(topAlbums.Albums))
-			names := make([]string, len(topAlbums.Albums))
-			artists := make([]string, len(topAlbums.Albums))
-			for i, a := range topAlbums.Albums {
-				if len(a.Images) > 0 {
-					urls[i] = a.Images[len(a.Images)-1].URL
-				}
-				names[i] = a.Name
-				artists[i] = a.Artist.Name
-			}
-			fetched := fetchEntries(urls)
-			for i, e := range fetched {
-				if e.Image == nil {
-					e.Image = brokenImage
-				}
-				e.Name = names[i]
-				e.Artist = artists[i]
-				entries = append(entries, e)
-			}
+		entries, err := fetchChartEntries(c, options.Type, user, grid, period)
+		if err != nil {
+			return err
 		}
-
 		if len(entries) == 0 {
 			return errors.New("no entries found")
 		}
 
-		interRegular := font.LoadFont("assets/font/Inter_24pt-Regular.ttf")
-		interBold := font.LoadFont("assets/font/Inter_24pt-Bold.ttf")
-
-		labelFace := interBold.Face(20, 72)
-		subFace := interRegular.Face(16, 72)
-
-		firstBounds := entries[0].Image.Bounds()
-		cellWidth := firstBounds.Dx()
-		cellHeight := firstBounds.Dy()
-		canvasWidth := cellWidth * gridSize
-		canvasHeight := cellHeight * gridSize
-		canvas := image.NewRGBA(image.Rect(0, 0, canvasWidth, canvasHeight))
-
-		chartGradient, err := imgio.Open("assets/img/chart_gradient.png")
+		img, err := renderChart(entries, grid)
 		if err != nil {
 			return err
 		}
 
-		labelAscent := labelFace.Metrics().Ascent.Ceil()
-		subAscent := subFace.Metrics().Ascent.Ceil()
-
-		for i, entry := range entries {
-			row := i / gridSize
-			col := i % gridSize
-			x := col * cellWidth
-			y := row * cellHeight
-			rect := image.Rect(x, y, x+cellWidth, y+cellHeight)
-
-			draw.Draw(canvas, rect, entry.Image, image.Point{}, draw.Over)
-			draw.Draw(canvas, rect, chartGradient, image.Point{}, draw.Over)
-
-			font.DrawText(canvas, x+15, y+labelAscent+15, entry.Name, color.White, labelFace)
-
-			if entry.Artist != "" {
-				font.DrawText(canvas, x+15, y+labelAscent+subAscent+20,
-					entry.Artist, color.RGBA{170, 170, 170, 255}, subFace)
-			}
-		}
-
-		result, err := imgio.Encode(canvas, imgio.PNGEncoder())
-		if err != nil {
-			return err
-		}
-
-		_, err = edit.Contentf("%s %s chart for %s", period, options.Type, username).File(sendpart.File{Name: "chart.png", Reader: bytes.NewReader(result)}).Send()
+		_, err = edit.
+			Contentf("%s %s chart for %s", period, options.Type, user).
+			File(sendpart.File{Name: "chart.png", Reader: bytes.NewReader(img)}).
+			Send()
 		return err
 	})
 }
 
-func init() {
-	// todo: remove this in the future*
-	brokenImage, _ = imgio.Open("assets/img/broken.png")
-	brokenImage = transform.Resize(brokenImage, 300, 300, transform.NearestNeighbor)
-	commands.Register(data, handler)
+func fetchChartEntries(c *commands.CommandContext, kind, user string, grid int, period string) ([]Entry, error) {
+	limit := grid * grid
+
+	var urls, names, artists []string
+	switch kind {
+	case "artist":
+		res, err := c.Last.User.GetTopArtists(lastfm.P{"user": user, "limit": limit, "period": period})
+		if err != nil {
+			return nil, err
+		}
+		urls, names = make([]string, len(res.Artists)), make([]string, len(res.Artists))
+		for i, a := range res.Artists {
+			if u, _ := a.GetDeezerImage(); u != "" {
+				urls[i] = u
+			}
+			names[i] = a.Name
+		}
+	case "track":
+		res, err := c.Last.User.GetTopTracks(lastfm.P{"user": user, "limit": limit, "period": period})
+		if err != nil {
+			return nil, err
+		}
+		urls, names, artists = make([]string, len(res.Tracks)), make([]string, len(res.Tracks)), make([]string, len(res.Tracks))
+		for i, t := range res.Tracks {
+			if len(t.Images) > 0 {
+				urls[i] = t.Images[len(t.Images)-1].URL
+			}
+			names[i], artists[i] = t.Name, t.Artist.Name
+		}
+	case "album":
+		res, err := c.Last.User.GetTopAlbums(lastfm.P{"user": user, "limit": limit, "period": period})
+		if err != nil {
+			return nil, err
+		}
+		urls, names, artists = make([]string, len(res.Albums)), make([]string, len(res.Albums)), make([]string, len(res.Albums))
+		for i, a := range res.Albums {
+			if len(a.Images) > 0 {
+				urls[i] = a.Images[len(a.Images)-1].URL
+			}
+			names[i], artists[i] = a.Name, a.Artist.Name
+		}
+	}
+
+	cellSize := 300
+	if grid >= 10 {
+		cellSize = 100
+	}
+
+	broken, _ := imgio.Open("assets/img/broken.png")
+	broken = transform.Resize(broken, cellSize, cellSize, transform.NearestNeighbor)
+
+	fetched := fetchEntries(urls)
+	entries := make([]Entry, len(fetched))
+	for i, e := range fetched {
+		if e.Image == nil {
+			e.Image = broken
+		}
+		e.Image = transform.Resize(e.Image, cellSize, cellSize, transform.NearestNeighbor)
+		e.Name = names[i]
+		if artists != nil {
+			e.Artist = artists[i]
+		}
+		entries[i] = e
+	}
+	return entries, nil
+}
+
+func fetchEntries(urls []string) []Entry {
+	entries := make([]Entry, len(urls))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, maxConcurrent)
+
+	for i, url := range urls {
+		wg.Add(1)
+		go func(i int, url string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			entries[i].Image = fetchImage(url)
+		}(i, url)
+	}
+	wg.Wait()
+	return entries
 }
 
 func fetchImage(url string) image.Image {
@@ -265,21 +224,6 @@ func fetchImage(url string) image.Image {
 	return img
 }
 
-func fetchEntries(urls []string) []Entry {
-	entries := make([]Entry, len(urls))
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, maxConcurrent)
-
-	for i, url := range urls {
-		i, url := i, url
-		wg.Go(func() {
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			entries[i].Image = fetchImage(url)
-		})
-	}
-
-	wg.Wait()
-	return entries
+func init() {
+	commands.Register(data, handler)
 }
