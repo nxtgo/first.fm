@@ -195,14 +195,15 @@ func fetchEntries(urls []string) []Entry {
 	sem := make(chan struct{}, maxConcurrent)
 
 	for i, url := range urls {
-		wg.Add(1)
-		go func(i int, url string) {
-			defer wg.Done()
+		i, url := i, url
+		wg.Go(func() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
+
 			entries[i].Image = fetchImage(url)
-		}(i, url)
+		})
 	}
+
 	wg.Wait()
 	return entries
 }

@@ -71,6 +71,7 @@ func NewBot(ctx context.Context, token, dbPath, lastfmKey string) (*Bot, error) 
 }
 
 func (b *Bot) Run(ctx context.Context) error {
+	// automatize ts pls
 	b.State.AddHandler(func(e *gateway.ReadyEvent) {
 		b.Registry.Dispatch(events.TypeName(e), e)
 	})
