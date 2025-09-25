@@ -6,14 +6,16 @@ type ComponentType int
 type ButtonStyle int
 
 const (
-	TypeActionRow   ComponentType = 1
-	TypeButton      ComponentType = 2
-	TypeTextDisplay ComponentType = 10
-	TypeThumbnail   ComponentType = 11
-	TypeSection     ComponentType = 9
-	TypeDivider     ComponentType = 14
-	TypeContainer   ComponentType = 17
+	TypeActionRow    ComponentType = 1
+	TypeButton       ComponentType = 2
+	TypeSection      ComponentType = 9
+	TypeTextDisplay  ComponentType = 10
+	TypeThumbnail    ComponentType = 11
+	TypeMediaGallery ComponentType = 12
+	TypeDivider      ComponentType = 14
+	TypeContainer    ComponentType = 17
 )
+
 const (
 	ButtonStylePrimary ButtonStyle = iota + 1
 	ButtonStyleSecondary
@@ -98,6 +100,20 @@ type Emoji struct {
 	Animated bool    `json:"animated"`
 }
 
+type MediaGallery struct {
+	Type  ComponentType      `json:"type"`
+	ID    *int               `json:"id,omitempty"`
+	Items []MediaGalleryItem `json:"items"`
+}
+
+func (m *MediaGallery) componentType() ComponentType { return TypeMediaGallery }
+
+type MediaGalleryItem struct {
+	Media       Media  `json:"media"`
+	Description string `json:"description,omitempty"`
+	Spoiler     bool   `json:"spoiler,omitempty"`
+}
+
 func NewContainer(accent int, children ...Component) *Container {
 	return &Container{Type: TypeContainer, AccentColor: accent, Components: children}
 }
@@ -143,4 +159,22 @@ func (b *Button) WithURL(url string) *Button {
 func (b *Button) WithEmoji(id string) *Button {
 	b.Emoji = &Emoji{ID: id}
 	return b
+}
+
+func NewMediaGallery(items ...MediaGalleryItem) *MediaGallery {
+	return &MediaGallery{Type: TypeMediaGallery, Items: items}
+}
+
+func NewMediaGalleryItem(url string) MediaGalleryItem {
+	return MediaGalleryItem{Media: Media{URL: url}}
+}
+
+func (m MediaGalleryItem) WithDescription(desc string) MediaGalleryItem {
+	m.Description = desc
+	return m
+}
+
+func (m MediaGalleryItem) WithSpoiler() MediaGalleryItem {
+	m.Spoiler = true
+	return m
 }

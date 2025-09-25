@@ -43,5 +43,6 @@ func renderChart(entries []Entry, grid int) ([]byte, error) {
 				entry.Artist, color.RGBA{170, 170, 170, 255}, subFace)
 		}
 	}
+
 	return imgio.Encode(canvas, imgio.PNGEncoder())
 }

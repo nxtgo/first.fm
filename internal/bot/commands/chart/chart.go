@@ -13,6 +13,7 @@ import (
 	"github.com/nxtgo/arikawa/v3/discord"
 	"github.com/nxtgo/arikawa/v3/utils/sendpart"
 	"go.fm/internal/bot/commands"
+	"go.fm/internal/bot/discord/components"
 	"go.fm/internal/bot/discord/reply"
 	"go.fm/internal/bot/image/imgio"
 	"go.fm/internal/bot/image/transform"
@@ -114,8 +115,15 @@ func handler(c *commands.CommandContext) error {
 			return err
 		}
 
+		component := components.NewContainer(0,
+			components.NewTextDisplayf("# %s %s chart for %s", period, options.Type, user),
+			components.NewMediaGallery(
+				components.NewMediaGalleryItem("attachment://chart.png"),
+			),
+		)
+
 		_, err = edit.
-			Contentf("%s %s chart for %s", period, options.Type, user).
+			ComponentsV2(component).
 			File(sendpart.File{Name: "chart.png", Reader: bytes.NewReader(img)}).
 			Send()
 		return err

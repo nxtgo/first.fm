@@ -2,6 +2,7 @@ package update
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/nxtgo/arikawa/v3/api"
@@ -11,11 +12,22 @@ import (
 	"go.fm/internal/bot/lastfm"
 )
 
+var validDataTypes = []string{
+	"profile", "getinfo",
+	"topalbums",
+	"topartists",
+	"toptracks",
+	"all",
+}
+
 var data = api.CreateCommandData{
 	Name:        "update",
-	Description: "update your data or another user's",
+	Description: "Update your Last.fm data or another user's",
 	Options: discord.CommandOptions{
-		discord.NewStringOption("data", "comma-separated list of data to update", true),
+		discord.NewStringOption("data",
+			"comma-separated list of data to update",
+			true,
+		),
 		discord.NewStringOption("user", "user to update data for", false),
 	},
 }
@@ -25,7 +37,6 @@ var options struct {
 	Data string  `discord:"data"`
 }
 
-// todo: let the user know which data is available to update
 func handler(c *commands.CommandContext) error {
 	return c.Reply.AutoDefer(func(edit *reply.EditBuilder) error {
 		if err := c.Data.Options.Unmarshal(&options); err != nil {
@@ -42,52 +53,53 @@ func handler(c *commands.CommandContext) error {
 			dataTypes[i] = strings.TrimSpace(strings.ToLower(dataTypes[i]))
 		}
 
+		for _, t := range dataTypes {
+			if !slices.Contains(validDataTypes, t) {
+				return fmt.Errorf("`%s` is not a valid data type. valid options: %s", t, strings.Join(validDataTypes, ", "))
+			}
+		}
+
 		userParams := lastfm.P{"user": username}
+		updated := make([]string, 0, len(dataTypes))
 
 		for _, t := range dataTypes {
 			switch t {
 			case "profile", "getinfo":
-				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.getinfo", userParams))
-				go c.Last.User.GetInfo(userParams)
+				update(c, "user.getinfo", c.Last.User.GetInfo, userParams)
+				updated = append(updated, "profile")
 
 			case "topalbums":
-				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.gettopalbums", userParams))
-				go c.Last.User.GetTopAlbums(userParams)
+				update(c, "user.gettopalbums", c.Last.User.GetTopAlbums, userParams)
+				updated = append(updated, "topalbums")
 
 			case "topartists":
-				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.gettopartists", userParams))
-				go c.Last.User.GetTopArtists(userParams)
+				update(c, "user.gettopartists", c.Last.User.GetTopArtists, userParams)
+				updated = append(updated, "topartists")
 
 			case "toptracks":
-				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.gettoptracks", userParams))
-				go c.Last.User.GetTopTracks(userParams)
+				update(c, "user.gettoptracks", c.Last.User.GetTopTracks, userParams)
+				updated = append(updated, "toptracks")
 
 			case "all":
-				fallthrough
-			default:
-				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.getinfo", userParams))
-				go c.Last.User.GetInfo(userParams)
-
-				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.gettopalbums", userParams))
-				go c.Last.User.GetTopAlbums(userParams)
-
-				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.gettopartists", userParams))
-				go c.Last.User.GetTopArtists(userParams)
-
-				c.Cache.User.Delete(lastfm.GenerateCacheKey("user.gettoptracks", userParams))
-				go c.Last.User.GetTopTracks(userParams)
+				update(c, "user.getinfo", c.Last.User.GetInfo, userParams)
+				update(c, "user.gettopalbums", c.Last.User.GetTopAlbums, userParams)
+				update(c, "user.gettopartists", c.Last.User.GetTopArtists, userParams)
+				update(c, "user.gettoptracks", c.Last.User.GetTopTracks, userParams)
+				updated = append(updated, "all")
 			}
 		}
 
-		_, err = edit.Content(
-			fmt.Sprintf(
-				"updated the following data for `%s`:\n\\- %s",
-				username,
-				strings.Join(dataTypes, "\n\\- "),
-			),
-		).Send()
+		embed := reply.SuccessEmbed(fmt.Sprintf("updated the following data for `%s`:\n\\- %s",
+			username,
+			strings.Join(updated, "\n\\- ")))
+		_, err = edit.Embed(embed).Send()
 		return err
 	})
+}
+
+func update[T any](c *commands.CommandContext, key string, fn func(lastfm.P) (*T, error), params lastfm.P) {
+	c.Cache.User.Delete(lastfm.GenerateCacheKey(key, params))
+	go fn(params)
 }
 
 func init() {

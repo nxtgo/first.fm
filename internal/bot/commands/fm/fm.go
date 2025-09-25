@@ -54,9 +54,10 @@ func handler(c *commands.CommandContext) error {
 			text = components.NewTextDisplayf("-# *Last track for %s, scrobbled at %s*", res.User, playtime.Format(time.Kitchen))
 		}
 
-		thumbnail := lastTrack.GetLargestImage().URL
+		largeThumbnail := lastTrack.GetLargestImage().URL
+		smallThumbnail := lastTrack.GetImageBySize("small").URL
 		color := 0x703487
-		if dominantColor, err := colors.Dominant(thumbnail); err == nil {
+		if dominantColor, err := colors.Dominant(smallThumbnail); err == nil {
 			color = dominantColor
 		}
 
@@ -65,7 +66,7 @@ func handler(c *commands.CommandContext) error {
 				components.NewTextDisplayf("# %s", lastTrack.Name),
 				components.NewTextDisplayf("**%s** **·** %s", lastTrack.Artist.Name, lastTrack.Album.Name),
 				text,
-			).WithAccessory(components.NewThumbnail(thumbnail)),
+			).WithAccessory(components.NewThumbnail(largeThumbnail)),
 			components.NewActionRow(
 				components.NewButton(components.ButtonStyleLink, "Last.fm", nil).WithEmoji("1418269025959546943").WithURL(lastTrack.URL),
 			),
