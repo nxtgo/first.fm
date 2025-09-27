@@ -1,0 +1,66 @@
+package setuser
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+
+	"github.com/nxtgo/arikawa/v3/api"
+	"github.com/nxtgo/arikawa/v3/discord"
+	"go.fm/internal/bot/commands"
+	"go.fm/internal/bot/discord/reply"
+	"go.fm/internal/bot/lastfm"
+	"go.fm/internal/bot/persistence/sqlc"
+)
+
+var data = api.CreateCommandData{
+	Name:        "set-user",
+	Description: "set your last.fm username for go.fm",
+	Options: discord.CommandOptions{
+		discord.NewStringOption("username", "your last.fm username", true),
+	},
+}
+
+var options struct {
+	Username string `discord:"username"`
+}
+
+func handler(c *commands.CommandContext) error {
+	return c.Reply.AutoDefer(func(edit *reply.EditBuilder) error {
+		if err := c.Data.Options.Unmarshal(&options); err != nil {
+			return err
+		}
+
+		if _, err := c.Last.User.GetInfo(lastfm.P{"user": options.Username}); err != nil {
+			return fmt.Errorf("user **%s** doesn't exist in last.fm", options.Username)
+		}
+
+		userID := c.Data.Event.Member.User.ID
+
+		user, err := c.Query.GetUserByLastFM(c.Context, options.Username)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("failed to check username: %w", err)
+		}
+		if err == nil && user.UserID != userID.String() {
+			return fmt.Errorf("the username **%s** is already linked to another discord user", options.Username)
+		}
+		if err == nil && user.UserID == userID.String() {
+			return fmt.Errorf("your username is already set to **%s**", options.Username)
+		}
+
+		err = c.Query.UpsertUser(c.Context, sqlc.UpsertUserParams{
+			UserID:         userID.String(),
+			LastfmUsername: options.Username,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to update username: %w", err)
+		}
+
+		_, err = edit.Embed(reply.SuccessEmbed(fmt.Sprintf("updated your username to **%s**", options.Username))).Send()
+		return err
+	})
+}
+
+func init() {
+	commands.Register(data, handler)
+}
