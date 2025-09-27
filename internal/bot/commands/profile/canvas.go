@@ -9,7 +9,6 @@ import (
 
 	"github.com/nxtgo/arikawa/v3/utils/sendpart"
 	"go.fm/internal/bot/discord/reply"
-	"go.fm/internal/bot/image/blur"
 	"go.fm/internal/bot/image/font"
 	"go.fm/internal/bot/image/imgio"
 	"go.fm/internal/bot/image/mask"
@@ -21,23 +20,30 @@ var (
 	profileWidth  = 740
 	profileHeight = 260
 
-	avatarX      = 23
-	avatarY      = 45
-	avatarWidth  = 120
-	avatarHeight = 120
+	avatarX      = 43
+	avatarY      = 21
+	avatarWidth  = 130
+	avatarHeight = 130
 
-	containerX = 23
-	containerY = 187
-	containerW = 120
-	containerH = 21
+	containerX = 45
+	containerY = 169
+	containerW = 125
+	containerH = 40
+
+	realNameX = 200
+	realNameY = 21
 )
 
 func renderCanvas(edit *reply.EditBuilder, user *lastfm.User) error {
-	inter := font.LoadFont("assets/font/Inter_24pt-Bold.ttf")
-	face := inter.Face(14, 72)
+	interBold := font.LoadFont("assets/font/Inter_24pt-Bold.ttf")
+	//interRegular := font.LoadFont("assets/font/Inter_24pt-Regular.ttf")
+
+	scrobblesFace := interBold.Face(20, 72)
+	realNameFace := interBold.Face(24, 72)
+	// usernameFace := interRegular.Face(15, 72)
 
 	canvas := image.NewRGBA(image.Rect(0, 0, profileWidth, profileHeight))
-	layout, err := imgio.Open("assets/img/profile_layout.png")
+	layout, err := imgio.Open("assets/img/layouts/profile.png")
 	if err != nil {
 		return err
 	}
@@ -45,11 +51,6 @@ func renderCanvas(edit *reply.EditBuilder, user *lastfm.User) error {
 	if err != nil {
 		return err
 	}
-
-	// background
-	background := transform.Resize(avatar, profileWidth, profileHeight, transform.NearestNeighbor)
-	background = blur.Gaussian(background, 30)
-	backgroundMask := mask.Rounded(profileWidth, profileHeight, 30)
 
 	// avatar
 	avatar = transform.Resize(avatar, avatarWidth, avatarHeight, transform.NearestNeighbor)
@@ -62,23 +63,30 @@ func renderCanvas(edit *reply.EditBuilder, user *lastfm.User) error {
 	)
 
 	// draw stuff onto the canvas
-	draw.DrawMask(canvas, image.Rect(0, 0, profileWidth, profileHeight), background, image.Point{0, 0}, backgroundMask, image.Point{0, 0}, draw.Over)
 	draw.Draw(canvas, image.Rect(0, 0, profileWidth, profileHeight), layout, image.Point{0, 0}, draw.Over)
 	draw.DrawMask(canvas, avatarRect, avatar, image.Point{0, 0}, avatarMask, image.Point{0, 0}, draw.Over)
 
-	// text
+	// scrobbles text
 	scrobbles := fmt.Sprintf("%d", user.GetPlayCount())
-	faceAscent := face.Metrics().Ascent.Ceil()
-	faceDescent := face.Metrics().Descent.Ceil()
+	faceAscent := scrobblesFace.Metrics().Ascent.Ceil()
+	faceDescent := scrobblesFace.Metrics().Descent.Ceil()
 
-	textWidth := font.Measure(face, scrobbles)
+	textWidth := font.Measure(scrobblesFace, scrobbles)
 	textHeight := faceAscent + faceDescent
 
 	textX := containerX + (containerW-textWidth)/2
 	textY := containerY + (containerH-textHeight)/2 + faceAscent
 
-	// draw the text onto the canvas
-	font.DrawText(canvas, textX, textY, scrobbles, color.White, face)
+	font.DrawText(canvas, textX, textY, scrobbles, color.White, scrobblesFace)
+
+	// real name text
+	realNameAscent := realNameFace.Metrics().Ascent.Ceil()
+	realName := user.RealName
+	if realName == "" {
+		realName = user.Name
+	}
+
+	font.DrawText(canvas, realNameX, realNameY+realNameAscent, realName, color.White, realNameFace)
 
 	result, err := imgio.Encode(canvas, imgio.PNGEncoder())
 	if err != nil {

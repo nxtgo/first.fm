@@ -50,3 +50,23 @@ func Rounded(width, height, radius int) *image.Alpha {
 
 	return mask
 }
+
+func GradientHorizontal(width, height int, reverse bool) *image.Alpha {
+	mask := image.NewAlpha(image.Rect(0, 0, width, height))
+
+	parallel.Line(height, func(start, end int) {
+		for y := start; y < end; y++ {
+			for x := range width {
+				var alpha uint8
+				if reverse {
+					alpha = uint8((x * 255) / width)
+				} else {
+					alpha = uint8(255 - (x * 255 / width))
+				}
+				mask.SetAlpha(x, y, color.Alpha{A: alpha})
+			}
+		}
+	})
+
+	return mask
+}

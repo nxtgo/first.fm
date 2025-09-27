@@ -17,11 +17,13 @@ var data = api.CreateCommandData{
 	Description: "display your current track or another user's",
 	Options: discord.CommandOptions{
 		discord.NewStringOption("user", "user to display track from", false),
+		discord.NewBooleanOption("canvas", "display as an image", false),
 	},
 }
 
 var options struct {
-	User *string `discord:"user"`
+	User   *string `discord:"user"`
+	Canvas *bool   `discord:"canvas"`
 }
 
 func handler(c *commands.CommandContext) error {
@@ -43,6 +45,11 @@ func handler(c *commands.CommandContext) error {
 		var text *components.TextDisplay
 
 		lastTrack := res.Tracks[0]
+
+		if options.Canvas != nil && *options.Canvas {
+			return renderCanvas(edit, &lastTrack)
+		}
+
 		if lastTrack.NowPlaying == "true" {
 			text = components.NewTextDisplayf("-# *Current track for %s*", res.User)
 		} else {
