@@ -1,4 +1,4 @@
-# go.fm
+# first.fm
 
 your last.fm stats within Discord, isn't it great?
 
@@ -7,7 +7,7 @@ your last.fm stats within Discord, isn't it great?
 ### clone repo (via http or ssh)
 
 ```sh
-$ git clone https://github.com/nxtgo/go.fm
+$ git clone https://github.com/nxtgo/first.fm
 ```
 
 ### create a .env

@@ -1,17 +1,17 @@
-module go.fm
+module first.fm
 
 go 1.25.0
 
 require (
-	github.com/mattn/go-sqlite3 v1.14.32
-	github.com/nxtgo/arikawa/v3 v3.0.0-20250921013437-308638597d52
-	github.com/nxtgo/gce v0.0.0-20250910001932-ff8e22b0e630
-	golang.org/x/image v0.31.0
+	github.com/disgoorg/disgo v0.19.0-rc.6.0.20250924005456-3274c76733fc
+	github.com/disgoorg/snowflake/v2 v2.0.3
 )
 
 require (
-	github.com/gorilla/schema v1.4.1 // indirect
+	github.com/disgoorg/json/v2 v2.0.0 // indirect
+	github.com/disgoorg/omit v1.0.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	golang.org/x/text v0.29.0 // indirect
-	golang.org/x/time v0.10.0 // indirect
+	github.com/sasha-s/go-csync v0.0.0-20240107134140-fcbab37b09ad // indirect
+	golang.org/x/crypto v0.39.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 )
