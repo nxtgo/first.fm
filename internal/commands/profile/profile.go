@@ -2,6 +2,7 @@ package profile
 
 import (
 	"first.fm/internal/bot"
+	"first.fm/internal/emojis"
 	"github.com/disgoorg/disgo/discord"
 )
 
@@ -36,15 +37,32 @@ func handle(ctx *bot.CommandContext) error {
 		return err
 	}
 
-	component := discord.NewContainer(
-		discord.NewSection(
-			discord.NewTextDisplayf("# [%s](%s)", user.Name, user.URL),
-		).WithAccessory(discord.NewThumbnail(user.Avatar.OriginalURL())),
-	).WithAccentColor(0x00ADD8)
+	component := []discord.LayoutComponent{
+		discord.NewContainer(
+			discord.NewSection(
+				discord.NewTextDisplayf("## [%s](%s)", user.Name, user.URL),
+				discord.NewTextDisplayf("Since <t:%d:D> %s", user.RegisteredAt.Time().Unix(), emojis.EmojiCalendar),
+				discord.NewTextDisplayf("**%d** total scrobbles %s", user.Playcount, emojis.EmojiPlay),
+			).WithAccessory(discord.NewThumbnail(user.Avatar.OriginalURL())),
+			discord.NewSmallSeparator(),
+			discord.NewTextDisplayf(
+				"%s **%d** albums\n%s **%d** artists\n%s **%d** unique tracks",
+				emojis.EmojiAlbum,
+				user.ArtistCount,
+				emojis.EmojiMic2,
+				user.AlbumCount,
+				emojis.EmojiNote,
+				user.TrackCount,
+			),
+		).WithAccentColor(0x00ADD8),
+		discord.NewActionRow(
+			discord.NewLinkButton("Last.fm", user.URL).WithEmoji(discord.NewCustomComponentEmoji(emojis.EmojiLastFMRed.Snowflake())),
+		),
+	}
 
 	_, err = ctx.UpdateInteractionResponse(discord.NewMessageUpdateBuilder().
 		SetIsComponentsV2(true).
-		SetComponents(component).
+		SetComponents(component...).
 		Build())
 	return err
 }

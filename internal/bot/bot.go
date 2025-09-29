@@ -49,12 +49,12 @@ func New(token, key string) (*Bot, error) {
 }
 
 func (b *Bot) Run(ctx context.Context) error {
+	b.Client.AddEventListeners(bot.NewListenerFunc(Dispatcher(b)))
+
 	if err := b.Client.OpenGateway(ctx); err != nil {
 		return err
 	}
 	defer b.Client.Close(ctx)
-
-	b.Client.AddEventListeners(bot.NewListenerFunc(Dispatcher(b)))
 
 	if _, err := b.Client.Rest.SetGuildCommands(b.Client.ApplicationID, snowflake.GetEnv("GUILD_ID"), Commands()); err != nil {
 		return err

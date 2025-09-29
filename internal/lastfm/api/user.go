@@ -21,7 +21,7 @@ type User struct {
 func NewUser(api *API) *User {
 	return &User{
 		api:       api,
-		InfoCache: cache.New[string, *lastfm.UserInfo](time.Minute*10, 1000),
+		InfoCache: cache.New[string, *lastfm.UserInfo](time.Hour, 1000),
 	}
 }
 
