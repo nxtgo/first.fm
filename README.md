@@ -2,6 +2,8 @@
 
 your last.fm stats within Discord, isn't it great?
 
+the code is work in progress so if u see a war crime just ignore it, thanks. ~elisiei
+
 ## installation
 
 ### clone repo (via http or ssh)

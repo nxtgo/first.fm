@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"first.fm/internal/lastfm/api"
+	"first.fm/internal/logger"
 	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/gateway"
@@ -17,11 +18,14 @@ import (
 type Bot struct {
 	Client *bot.Client
 	LastFM *api.Client
+	Logger *logger.Logger
 }
 
 func New(token, key string) (*Bot, error) {
+	log := logger.New()
 	client, err := disgo.New(
 		token,
+		bot.WithLogger(slog.New(logger.NewSlogHandler(log))),
 		bot.WithGatewayConfigOpts(
 			gateway.WithCompress(true),
 			gateway.WithAutoReconnect(true),
@@ -31,7 +35,6 @@ func New(token, key string) (*Bot, error) {
 			),
 		),
 		bot.WithEventListenerFunc(onReady),
-		bot.WithEventListenerFunc(Dispatcher()),
 	)
 	if err != nil {
 		return nil, err
@@ -41,6 +44,7 @@ func New(token, key string) (*Bot, error) {
 	return &Bot{
 		Client: client,
 		LastFM: lastfmClient,
+		Logger: log,
 	}, nil
 }
 
@@ -50,10 +54,12 @@ func (b *Bot) Run(ctx context.Context) error {
 	}
 	defer b.Client.Close(ctx)
 
+	b.Client.AddEventListeners(bot.NewListenerFunc(Dispatcher(b)))
+
 	if _, err := b.Client.Rest.SetGuildCommands(b.Client.ApplicationID, snowflake.GetEnv("GUILD_ID"), Commands()); err != nil {
 		return err
 	}
-	slog.Info("registered discord commands")
+	logger.Info("registered discord commands")
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)

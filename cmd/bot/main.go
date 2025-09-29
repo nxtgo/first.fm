@@ -26,6 +26,6 @@ func main() {
 	defer cancel()
 
 	if err = bot.Run(ctx); err != nil {
-		panic(err)
+		bot.Logger.Fatalf("%v", err)
 	}
 }
