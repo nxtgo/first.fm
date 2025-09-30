@@ -3,8 +3,10 @@ package bot
 import (
 	"context"
 	"strings"
+	"sync"
 	"time"
 
+	"first.fm/internal/emojis"
 	"first.fm/internal/lastfm"
 	"first.fm/internal/logger"
 	"github.com/disgoorg/disgo/discord"
@@ -23,9 +25,15 @@ type CommandHandler func(*CommandContext) error
 var (
 	allCommands []discord.ApplicationCommandCreate
 	registry    = map[string]CommandHandler{}
+	initOnce    sync.Once
 )
 
 func Register(meta discord.ApplicationCommandCreate, handler CommandHandler) {
+	initOnce.Do(func() {
+		allCommands = []discord.ApplicationCommandCreate{}
+		registry = map[string]CommandHandler{}
+	})
+
 	logger.Infow("registered command", logger.F{"name": meta.CommandName()})
 	allCommands = append(allCommands, meta)
 	registry[meta.CommandName()] = handler
@@ -58,9 +66,9 @@ func Dispatcher(bot *Bot) func(*events.ApplicationCommandInteractionCreate) {
 		}
 
 		if err := handler(ctx); err != nil {
-			logger.Errorw("command failed", logger.F{"name": data.CommandName(), "err": err.Error()})
-			_ = event.CreateMessage(discord.NewMessageCreateBuilder().
-				SetContent("error: " + err.Error()).
+			logger.Warnw("command failed", logger.F{"name": data.CommandName(), "err": err.Error()})
+			_ = ctx.CreateMessage(discord.NewMessageCreateBuilder().
+				SetContentf("%s %v", emojis.EmojiCross, err).
 				SetEphemeral(true).
 				Build())
 		}

@@ -10,5 +10,10 @@ import (
 
 func onReady(event *events.Ready) {
 	logger.Info("started client")
-	event.Client().SetPresence(context.Background(), gateway.WithCustomActivity("gwa gwa"))
+	event.
+		Client().
+		SetPresence(
+			context.Background(),
+			gateway.WithCustomActivity("listen to crystal castles!"),
+		)
 }
