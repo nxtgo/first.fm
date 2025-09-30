@@ -1,14 +1,19 @@
 version: "2"
+
 sql:
   - engine: "sqlite"
-    queries: "db/sql/queries.sql"
-    schema: "db/sql/schema.sql"
+    schema: "internal/persistence/sql/schema.sql"
+    queries: "internal/persistence/sql/queries.sql"
     database:
-      uri: "file:database.db"
+      uri: "file:database.db?_foreign_keys=on"
     gen:
       go:
-        package: "db"
-        out: "db"
-        emit_json_tags: true
+        package: "sqlc"
+        out: "internal/persistence/sqlc"
         emit_prepared_queries: true
-
+        emit_interface: false
+        overrides:
+          - column: "users.user_id"
+            go_type: "first.fm/internal/persistence/shared.ID"
+          - column: "users.created_at"
+            go_type: "time.Time"
