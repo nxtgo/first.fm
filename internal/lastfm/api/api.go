@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"first.fm/internal/lastfm"
+	"golang.org/x/time/rate"
 )
 
 var (
@@ -37,10 +39,11 @@ type HTTPClient interface {
 }
 
 type API struct {
-	APIKey    string
-	UserAgent string
-	Retries   uint
-	Client    HTTPClient
+	APIKey      string
+	UserAgent   string
+	Retries     uint
+	Client      HTTPClient
+	rateLimiter *rate.Limiter
 }
 
 func New(apiKey string) *API {
@@ -50,10 +53,11 @@ func New(apiKey string) *API {
 func NewWithTimeout(apiKey string, timeout int) *API {
 	t := time.Duration(timeout) * time.Second
 	return &API{
-		APIKey:    apiKey,
-		UserAgent: DefaultUserAgent,
-		Retries:   DefaultRetries,
-		Client:    &http.Client{Timeout: t},
+		APIKey:      apiKey,
+		UserAgent:   DefaultUserAgent,
+		Retries:     DefaultRetries,
+		Client:      &http.Client{Timeout: t},
+		rateLimiter: rate.NewLimiter(rate.Every(time.Second), 5),
 	}
 }
 
@@ -110,6 +114,10 @@ func (a API) PostBody(dest any, url, body string) error {
 }
 
 func (a API) tryRequest(dest any, method, url, body string) error {
+	if err := a.rateLimiter.Wait(context.Background()); err != nil {
+		return err
+	}
+
 	var (
 		res   *http.Response
 		lfm   LFMWrapper
