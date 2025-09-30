@@ -9,6 +9,7 @@ import (
 
 	"first.fm/internal/lastfm/api"
 	"first.fm/internal/logger"
+	"first.fm/internal/persistence/sqlc"
 	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/gateway"
@@ -16,12 +17,13 @@ import (
 )
 
 type Bot struct {
-	Client *bot.Client
-	LastFM *api.Client
-	Logger *logger.Logger
+	Client  *bot.Client
+	LastFM  *api.Client
+	Logger  *logger.Logger
+	Queries *sqlc.Queries
 }
 
-func New(token, key string) (*Bot, error) {
+func New(token, key string, q *sqlc.Queries) (*Bot, error) {
 	log := logger.New()
 	client, err := disgo.New(
 		token,
@@ -42,9 +44,10 @@ func New(token, key string) (*Bot, error) {
 
 	lastfmClient := api.NewClient(key)
 	return &Bot{
-		Client: client,
-		LastFM: lastfmClient,
-		Logger: log,
+		Client:  client,
+		LastFM:  lastfmClient,
+		Logger:  log,
+		Queries: q,
 	}, nil
 }
 

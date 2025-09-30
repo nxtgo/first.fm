@@ -2,7 +2,6 @@ package bot
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	disgohandler "github.com/disgoorg/disgo/handler"
+	"github.com/disgoorg/snowflake/v2"
 )
 
 type CommandContext struct {
@@ -69,20 +69,37 @@ func Dispatcher(bot *Bot) func(*events.ApplicationCommandInteractionCreate) {
 	}
 }
 
-func (ctx *CommandContext) GetLastFMUser(name string) (*lastfm.UserInfo, error) {
-	if name == "" {
-		name = "user"
+// now ima explain why this fucking function fetches the user everytime
+// so first of all, it is cached so dont fucking worry ok.
+// also this helps to cache the user for future requests do you get me
+// so stfu ik this fucking function fetches the entire user instead of only returning
+// a fucking username. ~elisiei
+// edit: however, i should do an alternative function to get only the username anyways :kekw:. ~elisiei
+func (ctx *CommandContext) GetLastFMUser(optionName string) (*lastfm.UserInfo, error) {
+	if optionName == "" {
+		optionName = "user"
 	}
 
-	if rawUser, defined := ctx.SlashCommandInteractionData().OptString(name); defined {
-		user, err := ctx.LastFM.User.Info(rawUser)
-		return user, err
+	rawUser, defined := ctx.SlashCommandInteractionData().OptString(optionName)
+	if defined && rawUser != "" {
+		if id, err := snowflake.Parse(normalizeUserMention(rawUser)); err == nil {
+			if dbUser, err := ctx.Queries.GetUserByID(ctx.Ctx, id); err == nil {
+				rawUser = dbUser.LastfmUsername
+			}
+		}
+
+		return ctx.LastFM.User.Info(rawUser)
 	}
 
-	return nil, errors.New("automatic user detection is being worked on")
+	user, err := ctx.Queries.GetUserByID(ctx.Ctx, ctx.User().ID)
+	if err != nil {
+		return nil, err
+	}
+	return ctx.LastFM.User.Info(user.LastfmUsername)
 }
 
-func normalizeUserInput(input string) string {
+func normalizeUserMention(input string) string {
+	input = strings.TrimSpace(input)
 	if strings.HasPrefix(input, "<@") && strings.HasSuffix(input, ">") {
 		trimmed := strings.TrimSuffix(strings.TrimPrefix(input, "<@"), ">")
 		return strings.TrimPrefix(trimmed, "!")
